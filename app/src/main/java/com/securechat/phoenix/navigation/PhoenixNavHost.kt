@@ -7,8 +7,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.securechat.phoenix.game.ui.GameScreen
+import com.securechat.phoenix.game.ui.GameSettingsScreen
 import com.securechat.phoenix.ui.screens.chat.ChatScreen
-import com.securechat.phoenix.ui.screens.decoy.DecoyGameScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeViewModel
 import com.securechat.phoenix.ui.screens.setup.SetupScreen
@@ -65,7 +66,17 @@ fun PhoenixNavHost() {
         }
 
         composable(Destination.DecoyGame.route) {
-            DecoyGameScreen()
+            GameScreen(
+                onNavigateToSettings = {
+                    navController.navigate(Destination.GameSettings.route)
+                }
+            )
+        }
+
+        composable(Destination.GameSettings.route) {
+            GameSettingsScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

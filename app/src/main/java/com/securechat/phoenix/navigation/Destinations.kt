@@ -9,4 +9,5 @@ sealed class Destination(val route: String) {
     data object Setup : Destination("setup")
     data object Chat : Destination("chat")
     data object DecoyGame : Destination("decoy_game")
+    data object GameSettings : Destination("game_settings")
 }
