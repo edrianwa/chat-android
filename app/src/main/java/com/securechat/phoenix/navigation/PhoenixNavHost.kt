@@ -4,12 +4,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.securechat.phoenix.chat.ui.ChatMessageScreen
+import com.securechat.phoenix.chat.ui.ChatViewModel
+import com.securechat.phoenix.chat.ui.ConversationListScreen
 import com.securechat.phoenix.game.ui.GameScreen
 import com.securechat.phoenix.game.ui.GameSettingsScreen
-import com.securechat.phoenix.ui.screens.chat.ChatScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeViewModel
 import com.securechat.phoenix.ui.screens.setup.SetupScreen
@@ -61,8 +65,42 @@ fun PhoenixNavHost() {
             )
         }
 
+        // Conversation List (main chat view)
         composable(Destination.Chat.route) {
-            ChatScreen()
+            val viewModel: ChatViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            ConversationListScreen(
+                conversations = uiState.conversations,
+                onConversationClick = { chatId ->
+                    navController.navigate(Destination.ChatConversation.withChatId(chatId))
+                },
+                onNewChat = {
+                    // TODO: Show contact picker / user ID input dialog
+                }
+            )
+        }
+
+        // Individual Chat Conversation
+        composable(
+            route = Destination.ChatConversation.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val viewModel: ChatViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            // Load messages for this chat
+            viewModel.openChat(chatId)
+
+            ChatMessageScreen(
+                chatId = chatId,
+                messages = uiState.messages,
+                onSendMessage = { content ->
+                    viewModel.sendMessage(chatId, content)
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Destination.DecoyGame.route) {
