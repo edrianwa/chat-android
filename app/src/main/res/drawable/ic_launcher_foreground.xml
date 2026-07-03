@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phoenix bird / fire icon - game-like branding -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Flame/Phoenix wing shape -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M54,24 C54,24 42,36 40,48 C38,60 44,72 54,80 C64,72 70,60 68,48 C66,36 54,24 54,24 Z" />
+    <!-- Inner glow -->
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M54,34 C54,34 47,42 46,50 C45,58 49,66 54,72 C59,66 63,58 62,50 C61,42 54,34 54,34 Z" />
+    <!-- Center bright core -->
+    <path
+        android:fillColor="#FFF3E0"
+        android:pathData="M54,44 C54,44 50,48 49.5,52 C49,56 51,60 54,64 C57,60 59,56 58.5,52 C58,48 54,44 54,44 Z" />
+</vector>

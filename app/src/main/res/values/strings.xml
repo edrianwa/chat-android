@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Phoenix</string>
+    <string name="passcode_title">Enter Passcode</string>
+    <string name="setup_title">Create Passcode</string>
+    <string name="setup_subtitle">Set up your access codes</string>
+    <string name="passcode_hint">Enter your PIN</string>
+    <string name="setup_chat_label">Chat Access Code</string>
+    <string name="setup_decoy_label">Decoy Game Code</string>
+    <string name="setup_confirm">Confirm Setup</string>
+    <string name="error_passcode_mismatch">Passcodes must be different</string>
+    <string name="error_passcode_length">Passcode must be at least 4 digits</string>
+</resources>
