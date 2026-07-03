@@ -16,19 +16,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,8 +43,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.securechat.phoenix.chat.data.MessageEntity
+import com.securechat.phoenix.chat.data.MessageStatus
+import com.securechat.phoenix.ui.theme.ChatColors
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -46,82 +57,109 @@ import java.util.Locale
 fun ConversationListScreen(
     conversations: List<MessageEntity>,
     onConversationClick: (String) -> Unit,
-    onNewChat: () -> Unit
+    onNewChat: () -> Unit,
+    onSearchClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = Color(0xFFFF6B35),
-                            modifier = Modifier.size(20.dp)
+                    Text(
+                        "Phoenix",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color.White
+                    )
+                },
+                actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(Icons.Default.Search, "Search", tint = Color.White)
+                    }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, "Menu", tint = Color.White)
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Profile") },
+                            onClick = { showMenu = false; onProfileClick() }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Secure Chat",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = { showMenu = false; onSettingsClick() }
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1A1A2E)
+                    containerColor = ChatColors.Teal
                 )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNewChat,
-                containerColor = Color(0xFFFF6B35)
+                containerColor = ChatColors.Green,
+                contentColor = Color.White
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New Chat", tint = Color.White)
+                Icon(Icons.Default.Chat, "New Chat")
             }
-        },
-        containerColor = Color(0xFF1A1A2E)
+        }
     ) { padding ->
         if (conversations.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.3f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "No conversations yet",
-                        color = Color.White.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        "Tap + to start a secure chat",
-                        color = Color.White.copy(alpha = 0.3f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            EmptyConversations(modifier = Modifier.padding(padding))
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 items(conversations) { conversation ->
                     ConversationItem(
                         conversation = conversation,
                         onClick = { onConversationClick(conversation.chatId) }
                     )
+                    Divider(
+                        modifier = Modifier.padding(start = 76.dp),
+                        color = MaterialTheme.colorScheme.outline,
+                        thickness = 0.5.dp
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyConversations(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.Chat,
+                contentDescription = null,
+                tint = ChatColors.TextSecondary.copy(alpha = 0.4f),
+                modifier = Modifier.size(72.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "No conversations yet",
+                color = ChatColors.TextSecondary,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Tap the button below to start chatting",
+                color = ChatColors.TextSecondary.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
@@ -132,52 +170,94 @@ private fun ConversationItem(conversation: MessageEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar placeholder
+        // Avatar
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(50.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF16213E)),
+                .background(ChatColors.TealLight.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = conversation.chatId.take(2).uppercase(),
-                color = Color(0xFFFF6B35),
-                fontWeight = FontWeight.Bold
+                color = ChatColors.Teal,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "User ${conversation.chatId.takeLast(6)}",
-                color = Color.White,
-                fontWeight = FontWeight.Medium,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = conversation.content,
-                color = Color.White.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "User ${conversation.chatId.takeLast(6)}",
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = formatConversationTime(conversation.timestamp),
+                    color = ChatColors.TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (conversation.isOutgoing) {
+                    StatusTicks(conversation.status)
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(
+                    text = conversation.content,
+                    color = ChatColors.TextSecondary,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
-
-        Text(
-            text = formatTime(conversation.timestamp),
-            color = Color.White.copy(alpha = 0.4f),
-            style = MaterialTheme.typography.bodySmall
-        )
     }
 }
 
-private fun formatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+@Composable
+private fun StatusTicks(status: MessageStatus) {
+    val tickText = when (status) {
+        MessageStatus.SENDING -> ""
+        MessageStatus.SENT -> "\u2713"
+        MessageStatus.DELIVERED -> "\u2713\u2713"
+        MessageStatus.READ -> "\u2713\u2713"
+    }
+    val tickColor = when (status) {
+        MessageStatus.READ -> ChatColors.TickBlue
+        else -> ChatColors.TickGray
+    }
+    if (tickText.isNotEmpty()) {
+        Text(text = tickText, color = tickColor, fontSize = 14.sp)
+    }
+}
+
+private fun formatConversationTime(timestamp: Long): String {
+    val now = Calendar.getInstance()
+    val msgTime = Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    return when {
+        now.get(Calendar.DATE) == msgTime.get(Calendar.DATE) &&
+                now.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) -> {
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+        }
+        now.get(Calendar.DATE) - msgTime.get(Calendar.DATE) == 1 &&
+                now.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) -> "Yesterday"
+        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(timestamp))
+    }
 }

@@ -23,8 +23,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.securechat.phoenix.chat.data.MessageEntity
 import com.securechat.phoenix.chat.data.MessageStatus
+import com.securechat.phoenix.ui.theme.ChatColors
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -59,13 +63,15 @@ import java.util.Locale
 fun ChatMessageScreen(
     chatId: String,
     messages: List<MessageEntity>,
+    isOnline: Boolean = false,
+    lastSeen: Long? = null,
     onSendMessage: (String) -> Unit,
     onBack: () -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val isDark = MaterialTheme.colorScheme.background == ChatColors.SurfaceDark
 
-    // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -79,49 +85,45 @@ fun ChatMessageScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF16213E)),
+                                .background(ChatColors.TealLight.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 chatId.take(2).uppercase(),
-                                color = Color(0xFFFF6B35),
-                                fontSize = 12.sp,
+                                color = Color.White,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
                                 "User ${chatId.takeLast(6)}",
                                 color = Color.White,
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "End-to-end encrypted",
-                                color = Color(0xFFFF6B35).copy(alpha = 0.7f),
-                                fontSize = 11.sp
+                                text = if (isOnline) "online" else formatLastSeen(lastSeen),
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp
                             )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1A1A2E)
+                    containerColor = if (isDark) ChatColors.AppBarDark else ChatColors.Teal
                 )
             )
         },
-        containerColor = Color(0xFF0D0221)
+        containerColor = if (isDark) ChatColors.ChatBgDark else ChatColors.ChatBgLight
     ) { padding ->
         Column(
             modifier = Modifier
@@ -129,22 +131,28 @@ fun ChatMessageScreen(
                 .padding(padding)
                 .imePadding()
         ) {
-            // Messages list
+            // Messages
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
                 state = listState,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                items(messages) { message ->
-                    MessageBubble(message = message)
+                val grouped = groupMessagesByDate(messages)
+                grouped.forEach { (dateSeparator, msgs) ->
+                    item {
+                        DateSeparator(dateSeparator)
+                    }
+                    items(msgs) { message ->
+                        MessageBubble(message = message, isDark = isDark)
+                    }
                 }
             }
 
             // Input bar
-            MessageInputBar(
+            ChatInputBar(
                 text = inputText,
                 onTextChanged = { inputText = it },
                 onSend = {
@@ -152,57 +160,84 @@ fun ChatMessageScreen(
                         onSendMessage(inputText.trim())
                         inputText = ""
                     }
-                }
+                },
+                isDark = isDark
             )
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: MessageEntity) {
+private fun DateSeparator(label: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(ChatColors.TextSecondary.copy(alpha = 0.15f))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = ChatColors.TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
     val isOutgoing = message.isOutgoing
-    val bubbleColor = if (isOutgoing) Color(0xFF16213E) else Color(0xFF1A2942)
+    val bubbleColor = if (isOutgoing) {
+        if (isDark) ChatColors.BubbleOutDark else ChatColors.BubbleOutLight
+    } else {
+        if (isDark) ChatColors.BubbleInDark else ChatColors.BubbleInLight
+    }
     val alignment = if (isOutgoing) Alignment.End else Alignment.Start
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 1.dp),
         horizontalAlignment = alignment
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(min = 80.dp, max = 300.dp)
                 .clip(
                     RoundedCornerShape(
-                        topStart = 12.dp,
-                        topEnd = 12.dp,
-                        bottomStart = if (isOutgoing) 12.dp else 4.dp,
-                        bottomEnd = if (isOutgoing) 4.dp else 12.dp
+                        topStart = 8.dp,
+                        topEnd = 8.dp,
+                        bottomStart = if (isOutgoing) 8.dp else 2.dp,
+                        bottomEnd = if (isOutgoing) 2.dp else 8.dp
                     )
                 )
                 .background(bubbleColor)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
         ) {
             Column {
                 Text(
                     text = message.content,
-                    color = Color.White,
-                    fontSize = 15.sp
+                    color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = formatMessageTime(message.timestamp),
-                        color = Color.White.copy(alpha = 0.4f),
+                        text = formatMsgTime(message.timestamp),
+                        color = ChatColors.TextSecondary,
                         fontSize = 11.sp
                     )
                     if (isOutgoing) {
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(Modifier.width(3.dp))
                         MessageStatusIcon(message.status)
                     }
                 }
@@ -213,87 +248,89 @@ private fun MessageBubble(message: MessageEntity) {
 
 @Composable
 private fun MessageStatusIcon(status: MessageStatus) {
-    when (status) {
-        MessageStatus.SENDING -> {
-            // Clock icon or nothing
-        }
-        MessageStatus.SENT -> {
-            Icon(
-                Icons.Default.Done,
-                contentDescription = "Sent",
-                tint = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        MessageStatus.DELIVERED -> {
-            Icon(
-                Icons.Default.DoneAll,
-                contentDescription = "Delivered",
-                tint = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        MessageStatus.READ -> {
-            Icon(
-                Icons.Default.DoneAll,
-                contentDescription = "Read",
-                tint = Color(0xFF4FC3F7), // Blue ticks
-                modifier = Modifier.size(14.dp)
-            )
-        }
+    val (icon, color) = when (status) {
+        MessageStatus.SENDING -> null to ChatColors.TickGray
+        MessageStatus.SENT -> Icons.Default.Done to ChatColors.TickGray
+        MessageStatus.DELIVERED -> Icons.Default.DoneAll to ChatColors.TickGray
+        MessageStatus.READ -> Icons.Default.DoneAll to ChatColors.TickBlue
+    }
+    if (icon != null) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
     }
 }
 
 @Composable
-private fun MessageInputBar(
+private fun ChatInputBar(
     text: String,
     onTextChanged: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    isDark: Boolean
 ) {
+    val bgColor = if (isDark) ChatColors.AppBarDark else ChatColors.SurfaceLight
+    val fieldBg = if (isDark) ChatColors.SurfaceDark else Color(0xFFF0F2F5)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF1A1A2E))
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(bgColor)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF16213E))
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .background(fieldBg)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.Bottom
         ) {
-            if (text.isEmpty()) {
-                Text(
-                    "Type a message...",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 15.sp
+            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.EmojiEmotions, "Emoji",
+                    tint = ChatColors.TextSecondary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
-            BasicTextField(
-                value = text,
-                onValueChange = onTextChanged,
-                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
-                cursorBrush = SolidColor(Color(0xFFFF6B35)),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp)
+            ) {
+                if (text.isEmpty()) {
+                    Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp)
+                }
+                BasicTextField(
+                    value = text,
+                    onValueChange = onTextChanged,
+                    textStyle = TextStyle(
+                        color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                        fontSize = 16.sp
+                    ),
+                    cursorBrush = SolidColor(ChatColors.TealLight),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.AttachFile, "Attach",
+                    tint = ChatColors.TextSecondary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
 
+        // Send button
         IconButton(
             onClick = onSend,
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(
-                    if (text.isNotBlank()) Color(0xFFFF6B35) else Color(0xFF16213E)
-                )
+                .background(ChatColors.Teal)
         ) {
             Icon(
-                Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send",
+                Icons.AutoMirrored.Filled.Send, "Send",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -301,7 +338,48 @@ private fun MessageInputBar(
     }
 }
 
-private fun formatMessageTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+// --- Helpers ---
+
+private fun groupMessagesByDate(messages: List<MessageEntity>): List<Pair<String, List<MessageEntity>>> {
+    if (messages.isEmpty()) return emptyList()
+    val groups = mutableListOf<Pair<String, MutableList<MessageEntity>>>()
+    var currentLabel = ""
+    for (msg in messages) {
+        val label = getDateLabel(msg.timestamp)
+        if (label != currentLabel) {
+            currentLabel = label
+            groups.add(label to mutableListOf(msg))
+        } else {
+            groups.last().second.add(msg)
+        }
+    }
+    return groups
+}
+
+private fun getDateLabel(timestamp: Long): String {
+    val now = Calendar.getInstance()
+    val msgCal = Calendar.getInstance().apply { timeInMillis = timestamp }
+    return when {
+        now.get(Calendar.DATE) == msgCal.get(Calendar.DATE) &&
+                now.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) -> "Today"
+        now.get(Calendar.DATE) - msgCal.get(Calendar.DATE) == 1 &&
+                now.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) -> "Yesterday"
+        else -> SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+private fun formatMsgTime(timestamp: Long): String {
+    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+}
+
+private fun formatLastSeen(timestamp: Long?): String {
+    if (timestamp == null) return "offline"
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60_000 -> "last seen just now"
+        diff < 3_600_000 -> "last seen ${diff / 60_000} min ago"
+        diff < 86_400_000 -> "last seen ${diff / 3_600_000}h ago"
+        else -> "last seen ${SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date(timestamp))}"
+    }
 }

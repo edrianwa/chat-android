@@ -11,7 +11,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.securechat.phoenix.chat.ui.ChatMessageScreen
 import com.securechat.phoenix.chat.ui.ChatViewModel
+import com.securechat.phoenix.chat.ui.ContactItem
+import com.securechat.phoenix.chat.ui.ContactsScreen
 import com.securechat.phoenix.chat.ui.ConversationListScreen
+import com.securechat.phoenix.chat.ui.ProfileScreen
+import com.securechat.phoenix.chat.ui.UserProfile
 import com.securechat.phoenix.game.ui.GameScreen
 import com.securechat.phoenix.game.ui.GameSettingsScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeScreen
@@ -65,7 +69,7 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Conversation List (main chat view)
+        // Chat List (WhatsApp-style)
         composable(Destination.Chat.route) {
             val viewModel: ChatViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
@@ -76,12 +80,15 @@ fun PhoenixNavHost() {
                     navController.navigate(Destination.ChatConversation.withChatId(chatId))
                 },
                 onNewChat = {
-                    // TODO: Show contact picker / user ID input dialog
+                    navController.navigate(Destination.Contacts.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Destination.Profile.route)
                 }
             )
         }
 
-        // Individual Chat Conversation
+        // Chat Conversation
         composable(
             route = Destination.ChatConversation.route,
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
@@ -90,19 +97,50 @@ fun PhoenixNavHost() {
             val viewModel: ChatViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
 
-            // Load messages for this chat
             viewModel.openChat(chatId)
 
             ChatMessageScreen(
                 chatId = chatId,
                 messages = uiState.messages,
-                onSendMessage = { content ->
-                    viewModel.sendMessage(chatId, content)
+                onSendMessage = { content -> viewModel.sendMessage(chatId, content) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Contacts
+        composable(Destination.Contacts.route) {
+            // TODO: Wire to real contacts ViewModel
+            ContactsScreen(
+                contacts = emptyList(),
+                onContactClick = { userId ->
+                    navController.navigate(Destination.ChatConversation.withChatId(userId)) {
+                        popUpTo(Destination.Contacts.route) { inclusive = true }
+                    }
+                },
+                onAddContact = { idNumber ->
+                    // TODO: API call to search user by ID, add to contacts
                 },
                 onBack = { navController.popBackStack() }
             )
         }
 
+        // Profile
+        composable(Destination.Profile.route) {
+            // TODO: Wire to real profile ViewModel
+            ProfileScreen(
+                profile = UserProfile(
+                    uniqueId = "12345678",
+                    displayName = "User",
+                    about = "Hey there! I am using Phoenix"
+                ),
+                onUpdateName = { /* TODO */ },
+                onUpdateAbout = { /* TODO */ },
+                onChangeAvatar = { /* TODO */ },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Decoy Game
         composable(Destination.DecoyGame.route) {
             GameScreen(
                 onNavigateToSettings = {

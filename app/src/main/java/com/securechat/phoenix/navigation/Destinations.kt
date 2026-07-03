@@ -11,6 +11,8 @@ sealed class Destination(val route: String) {
     data object ChatConversation : Destination("chat/{chatId}") {
         fun withChatId(chatId: String): String = "chat/$chatId"
     }
+    data object Contacts : Destination("contacts")
+    data object Profile : Destination("profile")
     data object DecoyGame : Destination("decoy_game")
     data object GameSettings : Destination("game_settings")
 }
