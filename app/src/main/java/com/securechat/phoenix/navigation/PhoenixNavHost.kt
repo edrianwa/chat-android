@@ -15,6 +15,7 @@ import com.securechat.phoenix.chat.ui.ContactItem
 import com.securechat.phoenix.chat.ui.ContactsScreen
 import com.securechat.phoenix.chat.ui.ConversationListScreen
 import com.securechat.phoenix.chat.ui.ProfileScreen
+import com.securechat.phoenix.chat.ui.ProfileViewModel
 import com.securechat.phoenix.chat.ui.UserProfile
 import com.securechat.phoenix.game.ui.GameScreen
 import com.securechat.phoenix.game.ui.GameSettingsScreen
@@ -126,16 +127,14 @@ fun PhoenixNavHost() {
 
         // Profile
         composable(Destination.Profile.route) {
-            // TODO: Wire to real profile ViewModel
+            val viewModel: ProfileViewModel = hiltViewModel()
+            val profile by viewModel.profile.collectAsState()
+
             ProfileScreen(
-                profile = UserProfile(
-                    uniqueId = "12345678",
-                    displayName = "User",
-                    about = "Hey there! I am using Phoenix"
-                ),
-                onUpdateName = { /* TODO */ },
-                onUpdateAbout = { /* TODO */ },
-                onChangeAvatar = { /* TODO */ },
+                profile = profile,
+                onUpdateName = viewModel::updateDisplayName,
+                onUpdateAbout = viewModel::updateAbout,
+                onChangeAvatar = { /* TODO: Camera/gallery picker */ },
                 onBack = { navController.popBackStack() }
             )
         }
