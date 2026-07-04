@@ -18,13 +18,15 @@ import javax.crypto.SecretKey
     entities = [
         MessageEntity::class,
         PendingMessageEntity::class,
+        ContactEntity::class,
         SessionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ChatDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
+    abstract fun contactDao(): ContactDao
     abstract fun sessionDao(): SessionDao
 
     companion object {

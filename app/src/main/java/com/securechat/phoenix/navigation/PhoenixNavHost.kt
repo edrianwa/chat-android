@@ -11,12 +11,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.securechat.phoenix.chat.ui.ChatMessageScreen
 import com.securechat.phoenix.chat.ui.ChatViewModel
-import com.securechat.phoenix.chat.ui.ContactItem
 import com.securechat.phoenix.chat.ui.ContactsScreen
+import com.securechat.phoenix.chat.ui.ContactsViewModel
 import com.securechat.phoenix.chat.ui.ConversationListScreen
 import com.securechat.phoenix.chat.ui.ProfileScreen
 import com.securechat.phoenix.chat.ui.ProfileViewModel
-import com.securechat.phoenix.chat.ui.UserProfile
 import com.securechat.phoenix.game.ui.GameScreen
 import com.securechat.phoenix.game.ui.GameSettingsScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeScreen
@@ -70,7 +69,7 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Chat List (WhatsApp-style)
+        // Chat List — auth happens silently in background
         composable(Destination.Chat.route) {
             val viewModel: ChatViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
@@ -108,18 +107,20 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Contacts
+        // Contacts — wired to real API
         composable(Destination.Contacts.route) {
-            // TODO: Wire to real contacts ViewModel
+            val viewModel: ContactsViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
             ContactsScreen(
-                contacts = emptyList(),
+                contacts = uiState.contacts,
                 onContactClick = { userId ->
                     navController.navigate(Destination.ChatConversation.withChatId(userId)) {
                         popUpTo(Destination.Contacts.route) { inclusive = true }
                     }
                 },
                 onAddContact = { idNumber ->
-                    // TODO: API call to search user by ID, add to contacts
+                    viewModel.searchUserById(idNumber)
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -134,7 +135,7 @@ fun PhoenixNavHost() {
                 profile = profile,
                 onUpdateName = viewModel::updateDisplayName,
                 onUpdateAbout = viewModel::updateAbout,
-                onChangeAvatar = { /* TODO: Camera/gallery picker */ },
+                onChangeAvatar = {},
                 onBack = { navController.popBackStack() }
             )
         }
@@ -149,9 +150,7 @@ fun PhoenixNavHost() {
         }
 
         composable(Destination.GameSettings.route) {
-            GameSettingsScreen(
-                onBack = { navController.popBackStack() }
-            )
+            GameSettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

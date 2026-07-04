@@ -3,6 +3,7 @@ package com.securechat.phoenix.di
 import android.content.Context
 import com.securechat.phoenix.chat.data.ChatDatabase
 import com.securechat.phoenix.chat.data.ChatRepository
+import com.securechat.phoenix.chat.data.ContactDao
 import com.securechat.phoenix.chat.data.MessageDao
 import com.securechat.phoenix.chat.network.ChatSocketClient
 import com.securechat.phoenix.crypto.network.KeyBundleRepository
@@ -35,6 +36,12 @@ object ChatModule {
 
     @Provides
     @Singleton
+    fun provideContactDao(database: ChatDatabase): ContactDao {
+        return database.contactDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideSessionDao(database: ChatDatabase): SessionDao {
         return database.sessionDao()
     }
@@ -52,8 +59,9 @@ object ChatModule {
     @Provides
     @Singleton
     fun provideChatSocketClient(
-        chatRepository: ChatRepository
+        chatRepository: ChatRepository,
+        tokenManager: com.securechat.phoenix.auth.TokenManager
     ): ChatSocketClient {
-        return ChatSocketClient(chatRepository)
+        return ChatSocketClient(chatRepository, tokenManager)
     }
 }
