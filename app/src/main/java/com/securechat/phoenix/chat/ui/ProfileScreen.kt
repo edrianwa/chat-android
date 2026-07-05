@@ -19,7 +19,9 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -183,7 +185,7 @@ fun ProfileScreen(
                 thickness = 0.5.dp
             )
 
-            // ID Number (read-only, copyable)
+            // Private Number (read-only, copy + share)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -191,7 +193,7 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.ContentCopy,
+                    Icons.Default.Lock,
                     null,
                     tint = ChatColors.TextSecondary,
                     modifier = Modifier.size(24.dp)
@@ -199,7 +201,7 @@ fun ProfileScreen(
                 Spacer(Modifier.width(32.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Your ID Number",
+                        "Your Private Number",
                         color = ChatColors.TextSecondary,
                         fontSize = 13.sp
                     )
@@ -210,10 +212,24 @@ fun ProfileScreen(
                         fontWeight = FontWeight.Medium
                     )
                 }
-                TextButton(onClick = {
+                // Copy button
+                IconButton(onClick = {
                     clipboardManager.setText(AnnotatedString(profile.uniqueId))
                 }) {
-                    Text("Copy", color = ChatColors.TealLight)
+                    Icon(Icons.Default.ContentCopy, "Copy", tint = ChatColors.TealLight, modifier = Modifier.size(20.dp))
+                }
+                // Share button (Android share sheet)
+                val context = androidx.compose.ui.platform.LocalContext.current
+                IconButton(onClick = {
+                    val sendIntent = android.content.Intent().apply {
+                        action = android.content.Intent.ACTION_SEND
+                        putExtra(android.content.Intent.EXTRA_TEXT, "Add me on Phoenix: ${profile.uniqueId}")
+                        type = "text/plain"
+                    }
+                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Share your number")
+                    context.startActivity(shareIntent)
+                }) {
+                    Icon(Icons.Default.Share, "Share", tint = ChatColors.TealLight, modifier = Modifier.size(20.dp))
                 }
             }
         }
