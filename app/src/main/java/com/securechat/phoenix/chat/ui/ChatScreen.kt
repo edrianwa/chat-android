@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EmojiEmotions
@@ -85,7 +86,11 @@ fun ChatMessageScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     var isRecording by remember { mutableStateOf(false) }
     var recordingDuration by remember { mutableStateOf(0) }
+    var recordedFile by remember { mutableStateOf<java.io.File?>(null) }
+    var recordedDuration by remember { mutableStateOf(0) }
     val voiceRecorder = remember { com.securechat.phoenix.chat.voice.VoiceRecorder(context) }
+    val voicePlayer = remember { com.securechat.phoenix.chat.voice.VoicePlayer(context) }
+    var isPreviewPlaying by remember { mutableStateOf(false) }
 
     // Permission launcher for voice recording
     val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -208,12 +213,12 @@ fun ChatMessageScreen(
                 onAttach = onAttachMedia,
                 onVoiceTap = {
                     if (isRecording) {
-                        // Stop and send with file path
+                        // Stop recording — show preview for review (don't send yet)
                         val file = voiceRecorder.stopRecording()
                         isRecording = false
                         if (file != null) {
-                            // Store file path as message content with audio: prefix
-                            onSendMessage("audio:${file.absolutePath}:${recordingDuration}")
+                            recordedFile = file
+                            recordedDuration = recordingDuration
                         }
                     } else {
                         // Start recording — check permission first
@@ -228,6 +233,35 @@ fun ChatMessageScreen(
                             audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                         }
                     }
+                },
+                // Preview state: recorded file waiting to be sent
+                recordedFile = recordedFile,
+                recordedDuration = recordedDuration,
+                isPreviewPlaying = isPreviewPlaying,
+                onPreviewPlay = {
+                    recordedFile?.let { file ->
+                        if (isPreviewPlaying) {
+                            voicePlayer.stop()
+                            isPreviewPlaying = false
+                        } else {
+                            voicePlayer.play("preview", file.absolutePath)
+                            isPreviewPlaying = true
+                        }
+                    }
+                },
+                onPreviewSend = {
+                    recordedFile?.let { file ->
+                        onSendMessage("audio:${file.absolutePath}:${recordedDuration}")
+                        recordedFile = null
+                        voicePlayer.stop()
+                        isPreviewPlaying = false
+                    }
+                },
+                onPreviewDelete = {
+                    recordedFile?.delete()
+                    recordedFile = null
+                    voicePlayer.stop()
+                    isPreviewPlaying = false
                 },
                 isRecording = isRecording,
                 recordingDuration = recordingDuration,
@@ -343,6 +377,12 @@ private fun ChatInputBar(
     onVoiceTap: () -> Unit,
     isRecording: Boolean,
     recordingDuration: Int,
+    recordedFile: java.io.File?,
+    recordedDuration: Int,
+    isPreviewPlaying: Boolean,
+    onPreviewPlay: () -> Unit,
+    onPreviewSend: () -> Unit,
+    onPreviewDelete: () -> Unit,
     isDark: Boolean
 ) {
     var showEmojiPicker by remember { mutableStateOf(false) }
@@ -375,6 +415,55 @@ private fun ChatInputBar(
                         text = "Recording... %02d:%02d".format(recordingDuration / 60, recordingDuration % 60),
                         color = Color.Red,
                         fontSize = 16.sp
+                    )
+                }
+            } else if (recordedFile != null) {
+                // Recorded preview — user can play, send, or delete
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(if (isDark) Color(0xFF1B3A2D) else Color(0xFFE8F5E9))
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Delete button
+                    Icon(
+                        Icons.Default.Delete, "Delete",
+                        tint = Color.Red,
+                        modifier = Modifier.size(22.dp).clickable { onPreviewDelete() }
+                    )
+                    Spacer(Modifier.width(8.dp))
+
+                    // Play/pause preview
+                    Icon(
+                        if (isPreviewPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        if (isPreviewPlaying) "Pause" else "Play",
+                        tint = ChatColors.Teal,
+                        modifier = Modifier.size(24.dp).clickable { onPreviewPlay() }
+                    )
+                    Spacer(Modifier.width(8.dp))
+
+                    // Waveform + duration
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        repeat(16) {
+                            Box(
+                                modifier = Modifier
+                                    .width(2.5.dp)
+                                    .height(((it % 5 + 1) * 3 + 4).dp)
+                                    .padding(horizontal = 0.5.dp)
+                                    .background(
+                                        if (isPreviewPlaying) ChatColors.Teal else ChatColors.TextSecondary.copy(alpha = 0.5f),
+                                        RoundedCornerShape(1.dp)
+                                    )
+                            )
+                        }
+                    }
+                    Text(
+                        text = "%d:%02d".format(recordedDuration / 60, recordedDuration % 60),
+                        fontSize = 13.sp,
+                        color = ChatColors.TextSecondary
                     )
                 }
             } else {
@@ -429,16 +518,26 @@ private fun ChatInputBar(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (isRecording) Color.Red else ChatColors.Teal)
+                    .background(
+                        when {
+                            isRecording -> Color.Red
+                            recordedFile != null -> ChatColors.Green
+                            else -> ChatColors.Teal
+                        }
+                    )
                     .clickable {
-                        if (text.isNotBlank()) onSend()
-                        else onVoiceTap()
+                        when {
+                            text.isNotBlank() -> onSend()
+                            recordedFile != null -> onPreviewSend()
+                            else -> onVoiceTap()
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
                 when {
                     text.isNotBlank() -> Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
                     isRecording -> Icon(Icons.Default.Stop, "Stop", tint = Color.White, modifier = Modifier.size(22.dp))
+                    recordedFile != null -> Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
                     else -> Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
                 }
             }
