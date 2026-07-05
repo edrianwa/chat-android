@@ -2,17 +2,20 @@ package com.securechat.phoenix.chat.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.securechat.phoenix.data.PasscodeRepository
+import com.securechat.phoenix.auth.TokenManager
+import com.securechat.phoenix.auth.UserApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val passcodeRepository: PasscodeRepository
+    private val tokenManager: TokenManager,
+    private val userApi: UserApi
 ) : ViewModel() {
 
     private val _profile = MutableStateFlow(UserProfile())
@@ -22,38 +25,72 @@ class ProfileViewModel @Inject constructor(
         loadProfile()
     }
 
+    /**
+     * Load profile from local token data first (instant), then fetch fresh from server.
+     */
     private fun loadProfile() {
         viewModelScope.launch {
-            // In a full implementation this would come from the server/local DB
-            // For now generate a consistent ID from the device
-            val storedId = generateLocalUserId()
+            // 1. Populate immediately from locally stored token data
+            val localId = tokenManager.getUserId()
+            val localUniqueId = tokenManager.getUniqueId()
+            val localName = tokenManager.displayName.first()
+
             _profile.value = UserProfile(
-                id = storedId,
-                uniqueId = storedId,
-                displayName = "Phoenix User",
-                about = "Hey there! I am using Phoenix"
+                id = localId ?: "",
+                uniqueId = localUniqueId ?: "",
+                displayName = localName ?: "Phoenix User",
+                about = ""
             )
+
+            // 2. Fetch fresh from server
+            try {
+                val response = userApi.getMyProfile()
+                if (response.isSuccessful && response.body() != null) {
+                    val serverProfile = response.body()!!
+                    _profile.value = UserProfile(
+                        id = serverProfile.id,
+                        uniqueId = serverProfile.uniqueId,
+                        displayName = serverProfile.displayName,
+                        about = serverProfile.about ?: "",
+                        avatarUrl = serverProfile.avatarUrl
+                    )
+                }
+            } catch (_: Exception) {
+                // Offline — keep local data
+            }
         }
     }
 
     fun updateDisplayName(name: String) {
-        if (name.length in 2..64) {
-            _profile.value = _profile.value.copy(displayName = name)
-            // TODO: API call to update on server
+        if (name.length !in 2..64) return
+
+        val current = _profile.value
+        _profile.value = current.copy(displayName = name)
+
+        viewModelScope.launch {
+            try {
+                val body = mapOf("displayName" to name)
+                userApi.updateProfile(body)
+            } catch (_: Exception) {
+                // Revert on failure
+                _profile.value = current
+            }
         }
     }
 
     fun updateAbout(about: String) {
-        if (about.length <= 256) {
-            _profile.value = _profile.value.copy(about = about)
-            // TODO: API call to update on server
-        }
-    }
+        if (about.length > 256) return
 
-    private fun generateLocalUserId(): String {
-        // Generate a stable 8-digit ID from system properties
-        val seed = (android.os.Build.FINGERPRINT + android.os.Build.DEVICE).hashCode()
-        val id = (kotlin.math.abs(seed) % 90000000 + 10000000)
-        return id.toString()
+        val current = _profile.value
+        _profile.value = current.copy(about = about)
+
+        viewModelScope.launch {
+            try {
+                val body = mapOf("about" to about)
+                userApi.updateProfile(body)
+            } catch (_: Exception) {
+                _profile.value = current
+            }
+        }
     }
 }
