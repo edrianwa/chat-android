@@ -239,18 +239,38 @@ fun PhoenixNavHost() {
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val viewModel: com.securechat.phoenix.call.CallViewModel = hiltViewModel()
+            val session by viewModel.callSession.collectAsState()
+            val permissionNeeded by viewModel.permissionNeeded.collectAsState()
+
+            // Request permission when needed
+            val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+            ) { granted -> viewModel.onPermissionResult(granted) }
+
+            androidx.compose.runtime.LaunchedEffect(permissionNeeded) {
+                permissionNeeded?.let { permissionLauncher.launch(it) }
+            }
+
+            // Start call on first composition
+            androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.startCall() }
+
+            // Navigate back when call ends
+            androidx.compose.runtime.LaunchedEffect(session.state) {
+                if (session.state == com.securechat.phoenix.call.CallState.ENDED ||
+                    session.state == com.securechat.phoenix.call.CallState.FAILED ||
+                    session.state == com.securechat.phoenix.call.CallState.REJECTED ||
+                    session.state == com.securechat.phoenix.call.CallState.MISSED) {
+                    kotlinx.coroutines.delay(1500) // Show status briefly
+                    navController.popBackStack()
+                }
+            }
+
             com.securechat.phoenix.call.ui.InCallScreen(
-                session = com.securechat.phoenix.call.CallSession(
-                    callId = "",
-                    state = com.securechat.phoenix.call.CallState.OUTGOING_RINGING,
-                    remoteUserId = chatId,
-                    remoteDisplayName = "User ${chatId.takeLast(6)}",
-                    isOutgoing = true,
-                    startTime = System.currentTimeMillis()
-                ),
-                onEndCall = { navController.popBackStack() },
-                onToggleMute = {},
-                onToggleSpeaker = {}
+                session = session,
+                onEndCall = { viewModel.endCall() },
+                onToggleMute = { viewModel.toggleMute() },
+                onToggleSpeaker = { viewModel.toggleSpeaker() }
             )
         }
 
@@ -260,23 +280,43 @@ fun PhoenixNavHost() {
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val viewModel: com.securechat.phoenix.call.CallViewModel = hiltViewModel()
+            val session by viewModel.callSession.collectAsState()
+            val permissionNeeded by viewModel.permissionNeeded.collectAsState()
+
+            val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+            ) { granted -> viewModel.onPermissionResult(granted) }
+
+            androidx.compose.runtime.LaunchedEffect(permissionNeeded) {
+                permissionNeeded?.let { permissionLauncher.launch(it) }
+            }
+
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                viewModel.setCallType("video")
+                viewModel.startCall()
+            }
+
+            androidx.compose.runtime.LaunchedEffect(session.state) {
+                if (session.state == com.securechat.phoenix.call.CallState.ENDED ||
+                    session.state == com.securechat.phoenix.call.CallState.FAILED ||
+                    session.state == com.securechat.phoenix.call.CallState.REJECTED ||
+                    session.state == com.securechat.phoenix.call.CallState.MISSED) {
+                    kotlinx.coroutines.delay(1500)
+                    navController.popBackStack()
+                }
+            }
+
             com.securechat.phoenix.call.ui.VideoCallScreen(
-                session = com.securechat.phoenix.call.CallSession(
-                    callId = "",
-                    state = com.securechat.phoenix.call.CallState.OUTGOING_RINGING,
-                    remoteUserId = chatId,
-                    remoteDisplayName = "User ${chatId.takeLast(6)}",
-                    isOutgoing = true,
-                    startTime = System.currentTimeMillis()
-                ),
+                session = session,
                 isVideoEnabled = true,
                 remoteVideoEnabled = false,
                 connectionQuality = com.securechat.phoenix.call.ConnectionQuality.GOOD,
-                onEndCall = { navController.popBackStack() },
-                onToggleMute = {},
+                onEndCall = { viewModel.endCall() },
+                onToggleMute = { viewModel.toggleMute() },
                 onToggleVideo = {},
                 onSwitchCamera = {},
-                onToggleSpeaker = {}
+                onToggleSpeaker = { viewModel.toggleSpeaker() }
             )
         }
     }
