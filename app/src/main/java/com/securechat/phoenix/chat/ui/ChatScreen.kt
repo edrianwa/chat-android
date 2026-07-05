@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -207,11 +208,12 @@ fun ChatMessageScreen(
                 onAttach = onAttachMedia,
                 onVoiceTap = {
                     if (isRecording) {
-                        // Stop and send
+                        // Stop and send with file path
                         val file = voiceRecorder.stopRecording()
                         isRecording = false
                         if (file != null) {
-                            onSendMessage("\uD83C\uDFA4 Voice message (${recordingDuration}s)")
+                            // Store file path as message content with audio: prefix
+                            onSendMessage("audio:${file.absolutePath}:${recordingDuration}")
                         }
                     } else {
                         // Start recording — check permission first
@@ -289,12 +291,17 @@ private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
                 .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
         ) {
             Column {
-                Text(
-                    text = message.content,
-                    color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp
-                )
+                if (message.content.startsWith("audio:")) {
+                    // Voice message bubble
+                    VoiceMessageContent(message = message, isDark = isDark)
+                } else {
+                    Text(
+                        text = message.content,
+                        color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp
+                    )
+                }
                 Row(
                     modifier = Modifier.align(Alignment.End).padding(top = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -436,6 +443,80 @@ private fun ChatInputBar(
                 }
             }
         }
+    }
+}
+
+// --- Voice Message Bubble ---
+
+@Composable
+private fun VoiceMessageContent(message: MessageEntity, isDark: Boolean) {
+    // Parse: "audio:/path/to/file:duration"
+    val parts = message.content.removePrefix("audio:").split(":")
+    val filePath = if (parts.size >= 2) parts.dropLast(1).joinToString(":") else parts.firstOrNull() ?: ""
+    val duration = parts.lastOrNull()?.toIntOrNull() ?: 0
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val voicePlayer = remember { com.securechat.phoenix.chat.voice.VoicePlayer(context) }
+    var isPlaying by remember { mutableStateOf(false) }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        // Play/Pause button
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(ChatColors.Teal)
+                .clickable {
+                    if (isPlaying) {
+                        voicePlayer.stop()
+                        isPlaying = false
+                    } else {
+                        voicePlayer.play(message.messageId, filePath)
+                        isPlaying = true
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isPlaying) {
+                Icon(Icons.Default.Stop, "Stop", tint = Color.White, modifier = Modifier.size(20.dp))
+            } else {
+                Icon(Icons.Default.PlayArrow, "Play", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        // Duration + waveform placeholder
+        Column {
+            // Simple waveform indicator
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                repeat(12) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(((it % 4 + 1) * 4 + 4).dp)
+                            .padding(horizontal = 0.5.dp)
+                            .background(
+                                if (isPlaying) ChatColors.Teal else ChatColors.TextSecondary.copy(alpha = 0.5f),
+                                RoundedCornerShape(1.dp)
+                            )
+                    )
+                }
+            }
+            Text(
+                text = "%d:%02d".format(duration / 60, duration % 60),
+                fontSize = 12.sp,
+                color = ChatColors.TextSecondary
+            )
+        }
+    }
+
+    // Stop playback when composable leaves
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { voicePlayer.release() }
     }
 }
 
