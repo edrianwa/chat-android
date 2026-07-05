@@ -18,6 +18,13 @@ import com.securechat.phoenix.chat.ui.ProfileScreen
 import com.securechat.phoenix.chat.ui.ProfileViewModel
 import com.securechat.phoenix.game.ui.GameScreen
 import com.securechat.phoenix.game.ui.GameSettingsScreen
+import com.securechat.phoenix.settings.AdminPanelScreen
+import com.securechat.phoenix.settings.PasscodeEntry
+import com.securechat.phoenix.settings.PasscodeSettingsScreen
+import com.securechat.phoenix.settings.PrivacySettings
+import com.securechat.phoenix.settings.PrivacySettingsScreen
+import com.securechat.phoenix.settings.StorageScreen
+import com.securechat.phoenix.settings.UserSettingsScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeScreen
 import com.securechat.phoenix.ui.screens.passcode.PasscodeViewModel
 import com.securechat.phoenix.ui.screens.setup.SetupScreen
@@ -69,7 +76,7 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Chat List — auth happens silently in background
+        // Chat List
         composable(Destination.Chat.route) {
             val viewModel: ChatViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
@@ -84,6 +91,9 @@ fun PhoenixNavHost() {
                 },
                 onProfileClick = {
                     navController.navigate(Destination.Profile.route)
+                },
+                onSettingsClick = {
+                    navController.navigate(Destination.Settings.route)
                 }
             )
         }
@@ -107,7 +117,7 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Contacts — wired to real API
+        // Contacts
         composable(Destination.Contacts.route) {
             val viewModel: ContactsViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
@@ -136,6 +146,56 @@ fun PhoenixNavHost() {
                 onUpdateName = viewModel::updateDisplayName,
                 onUpdateAbout = viewModel::updateAbout,
                 onChangeAvatar = {},
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Settings Hub
+        composable(Destination.Settings.route) {
+            UserSettingsScreen(
+                isAdmin = false, // TODO: read from TokenManager role
+                onBack = { navController.popBackStack() },
+                onProfileClick = { navController.navigate(Destination.Profile.route) },
+                onPasscodeClick = { navController.navigate(Destination.PasscodeSettings.route) },
+                onPrivacyClick = { navController.navigate(Destination.PrivacySettings.route) },
+                onStorageClick = { navController.navigate(Destination.StorageSettings.route) },
+                onAdminClick = { navController.navigate(Destination.AdminPanel.route) },
+                onDeleteAccount = { /* TODO: confirmation dialog + API call */ }
+            )
+        }
+
+        // Passcode Settings
+        composable(Destination.PasscodeSettings.route) {
+            PasscodeSettingsScreen(
+                passcodes = listOf(
+                    PasscodeEntry("••••••", "Secure Chat", "chat"),
+                    PasscodeEntry("••••••", "Flying Phoenix", "decoy_game")
+                ),
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Privacy Settings
+        composable(Destination.PrivacySettings.route) {
+            PrivacySettingsScreen(
+                settings = PrivacySettings(),
+                onBack = { navController.popBackStack() },
+                onLastSeenChange = { /* TODO: API call */ },
+                onReadReceiptsChange = { /* TODO: API call */ },
+                onPhotoVisibilityChange = { /* TODO: API call */ }
+            )
+        }
+
+        // Storage
+        composable(Destination.StorageSettings.route) {
+            StorageScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Admin Panel
+        composable(Destination.AdminPanel.route) {
+            AdminPanelScreen(
                 onBack = { navController.popBackStack() }
             )
         }

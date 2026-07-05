@@ -9,6 +9,11 @@ sealed class Destination(val route: String) {
     }
     data object Contacts : Destination("contacts")
     data object Profile : Destination("profile")
+    data object Settings : Destination("settings")
+    data object PasscodeSettings : Destination("settings/passcode")
+    data object PrivacySettings : Destination("settings/privacy")
+    data object StorageSettings : Destination("settings/storage")
+    data object AdminPanel : Destination("admin")
     data object DecoyGame : Destination("decoy_game")
     data object GameSettings : Destination("game_settings")
 }
