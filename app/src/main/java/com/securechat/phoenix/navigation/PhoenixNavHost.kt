@@ -3,6 +3,7 @@ package com.securechat.phoenix.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,6 +15,7 @@ import com.securechat.phoenix.chat.ui.ChatViewModel
 import com.securechat.phoenix.chat.ui.ContactsScreen
 import com.securechat.phoenix.chat.ui.ContactsViewModel
 import com.securechat.phoenix.chat.ui.ConversationListScreen
+import com.securechat.phoenix.chat.ui.MainScaffold
 import com.securechat.phoenix.chat.ui.ProfileScreen
 import com.securechat.phoenix.chat.ui.ProfileViewModel
 import com.securechat.phoenix.game.ui.GameScreen
@@ -76,27 +78,55 @@ fun PhoenixNavHost() {
             )
         }
 
-        // Chat List
+        // Main screen with bottom nav (Chat, Calls, Settings)
         composable(Destination.Chat.route) {
             val viewModel: ChatViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
+            var currentTab by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(0) }
 
-            ConversationListScreen(
-                conversations = uiState.conversations,
-                contactNames = uiState.contactNames,
-                onConversationClick = { chatId ->
-                    navController.navigate(Destination.ChatConversation.withChatId(chatId))
-                },
-                onNewChat = {
-                    navController.navigate(Destination.Contacts.route)
-                },
-                onProfileClick = {
-                    navController.navigate(Destination.Profile.route)
-                },
-                onSettingsClick = {
-                    navController.navigate(Destination.Settings.route)
+            MainScaffold(
+                currentTab = currentTab,
+                onTabChanged = { tab -> currentTab = tab }
+            ) {
+                when (currentTab) {
+                    0 -> {
+                        // Chat tab
+                        ConversationListScreen(
+                            conversations = uiState.conversations,
+                            contactNames = uiState.contactNames,
+                            onConversationClick = { chatId ->
+                                navController.navigate(Destination.ChatConversation.withChatId(chatId))
+                            },
+                            onNewChat = {
+                                navController.navigate(Destination.Contacts.route)
+                            },
+                            onProfileClick = {
+                                navController.navigate(Destination.Profile.route)
+                            },
+                            onSettingsClick = {
+                                navController.navigate(Destination.Settings.route)
+                            }
+                        )
+                    }
+                    1 -> {
+                        // Calls tab
+                        com.securechat.phoenix.call.ui.CallHistoryScreen()
+                    }
+                    2 -> {
+                        // Settings tab
+                        UserSettingsScreen(
+                            isAdmin = false,
+                            onBack = { currentTab = 0 },
+                            onProfileClick = { navController.navigate(Destination.Profile.route) },
+                            onPasscodeClick = { navController.navigate(Destination.PasscodeSettings.route) },
+                            onPrivacyClick = { navController.navigate(Destination.PrivacySettings.route) },
+                            onStorageClick = { navController.navigate(Destination.StorageSettings.route) },
+                            onAdminClick = { navController.navigate(Destination.AdminPanel.route) },
+                            onDeleteAccount = {}
+                        )
+                    }
                 }
-            )
+            }
         }
 
         // Chat Conversation
