@@ -64,6 +64,7 @@ import java.util.Locale
 @Composable
 fun ChatMessageScreen(
     chatId: String,
+    displayName: String = "",
     messages: List<MessageEntity>,
     isOnline: Boolean = false,
     lastSeen: Long? = null,
@@ -96,7 +97,7 @@ fun ChatMessageScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                chatId.take(2).uppercase(),
+                                chatId.take(1).uppercase().ifEmpty { displayName.take(1).uppercase() },
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
@@ -105,7 +106,7 @@ fun ChatMessageScreen(
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
-                                "User ${chatId.takeLast(6)}",
+                                displayName.ifEmpty { chatId.takeLast(8) },
                                 color = Color.White,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold

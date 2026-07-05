@@ -26,6 +26,7 @@ import javax.inject.Inject
 data class ChatUiState(
     val messages: List<MessageEntity> = emptyList(),
     val conversations: List<MessageEntity> = emptyList(),
+    val contactNames: Map<String, String> = emptyMap(),
     val currentChatId: String? = null,
     val isSending: Boolean = false,
     val isConnected: Boolean = false,
@@ -40,7 +41,8 @@ class ChatViewModel @Inject constructor(
     private val authApi: AuthApi,
     private val tokenManager: TokenManager,
     private val keyManager: KeyManager,
-    private val keyBundleRepository: KeyBundleRepository
+    private val keyBundleRepository: KeyBundleRepository,
+    private val contactDao: com.securechat.phoenix.chat.data.ContactDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -49,6 +51,7 @@ class ChatViewModel @Inject constructor(
     init {
         ensureAuthenticatedAndConnect()
         loadConversations()
+        loadContactNames()
         observeConnectionState()
     }
 
@@ -137,6 +140,15 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.getConversations().collect { conversations ->
                 _uiState.value = _uiState.value.copy(conversations = conversations)
+            }
+        }
+    }
+
+    private fun loadContactNames() {
+        viewModelScope.launch {
+            contactDao.getAllContacts().collect { contacts ->
+                val nameMap = contacts.associate { it.id to it.displayName }
+                _uiState.value = _uiState.value.copy(contactNames = nameMap)
             }
         }
     }

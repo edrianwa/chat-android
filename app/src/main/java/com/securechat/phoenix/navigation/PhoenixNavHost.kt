@@ -83,6 +83,7 @@ fun PhoenixNavHost() {
 
             ConversationListScreen(
                 conversations = uiState.conversations,
+                contactNames = uiState.contactNames,
                 onConversationClick = { chatId ->
                     navController.navigate(Destination.ChatConversation.withChatId(chatId))
                 },
@@ -122,6 +123,7 @@ fun PhoenixNavHost() {
 
             ChatMessageScreen(
                 chatId = chatId,
+                displayName = uiState.contactNames[chatId] ?: "",
                 messages = uiState.messages,
                 onSendMessage = { content -> viewModel.sendMessage(chatId, content) },
                 onVoiceCall = {

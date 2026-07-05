@@ -56,6 +56,7 @@ import java.util.Locale
 @Composable
 fun ConversationListScreen(
     conversations: List<MessageEntity>,
+    contactNames: Map<String, String> = emptyMap(),
     onConversationClick: (String) -> Unit,
     onNewChat: () -> Unit,
     onSearchClick: () -> Unit = {},
@@ -120,6 +121,7 @@ fun ConversationListScreen(
                 items(conversations) { conversation ->
                     ConversationItem(
                         conversation = conversation,
+                        displayName = contactNames[conversation.chatId] ?: "Unknown",
                         onClick = { onConversationClick(conversation.chatId) }
                     )
                     Divider(
@@ -165,7 +167,7 @@ private fun EmptyConversations(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ConversationItem(conversation: MessageEntity, onClick: () -> Unit) {
+private fun ConversationItem(conversation: MessageEntity, displayName: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,7 +185,7 @@ private fun ConversationItem(conversation: MessageEntity, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = conversation.chatId.take(2).uppercase(),
+                text = displayName.take(1).uppercase(),
                 color = ChatColors.Teal,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
@@ -198,7 +200,7 @@ private fun ConversationItem(conversation: MessageEntity, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "User ${conversation.chatId.takeLast(6)}",
+                    text = displayName,
                     modifier = Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
