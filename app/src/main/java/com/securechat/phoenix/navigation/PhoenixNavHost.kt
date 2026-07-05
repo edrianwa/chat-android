@@ -125,10 +125,10 @@ fun PhoenixNavHost() {
                 messages = uiState.messages,
                 onSendMessage = { content -> viewModel.sendMessage(chatId, content) },
                 onVoiceCall = {
-                    // TODO: navigate to voice call screen or initiate via CallManager
+                    navController.navigate(Destination.VoiceCall.withChatId(chatId))
                 },
                 onVideoCall = {
-                    // TODO: navigate to video call screen
+                    navController.navigate(Destination.VideoCall.withChatId(chatId))
                 },
                 onAttachMedia = {
                     mediaPickerLauncher.launch("image/*")
@@ -231,6 +231,53 @@ fun PhoenixNavHost() {
 
         composable(Destination.GameSettings.route) {
             GameSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Voice Call
+        composable(
+            route = Destination.VoiceCall.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            com.securechat.phoenix.call.ui.InCallScreen(
+                session = com.securechat.phoenix.call.CallSession(
+                    callId = "",
+                    state = com.securechat.phoenix.call.CallState.OUTGOING_RINGING,
+                    remoteUserId = chatId,
+                    remoteDisplayName = "User ${chatId.takeLast(6)}",
+                    isOutgoing = true,
+                    startTime = System.currentTimeMillis()
+                ),
+                onEndCall = { navController.popBackStack() },
+                onToggleMute = {},
+                onToggleSpeaker = {}
+            )
+        }
+
+        // Video Call
+        composable(
+            route = Destination.VideoCall.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            com.securechat.phoenix.call.ui.VideoCallScreen(
+                session = com.securechat.phoenix.call.CallSession(
+                    callId = "",
+                    state = com.securechat.phoenix.call.CallState.OUTGOING_RINGING,
+                    remoteUserId = chatId,
+                    remoteDisplayName = "User ${chatId.takeLast(6)}",
+                    isOutgoing = true,
+                    startTime = System.currentTimeMillis()
+                ),
+                isVideoEnabled = true,
+                remoteVideoEnabled = false,
+                connectionQuality = com.securechat.phoenix.call.ConnectionQuality.GOOD,
+                onEndCall = { navController.popBackStack() },
+                onToggleMute = {},
+                onToggleVideo = {},
+                onSwitchCamera = {},
+                onToggleSpeaker = {}
+            )
         }
     }
 }

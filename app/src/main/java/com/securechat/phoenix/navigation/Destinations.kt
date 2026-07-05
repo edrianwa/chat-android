@@ -14,6 +14,12 @@ sealed class Destination(val route: String) {
     data object PrivacySettings : Destination("settings/privacy")
     data object StorageSettings : Destination("settings/storage")
     data object AdminPanel : Destination("admin")
+    data object VoiceCall : Destination("call/voice/{chatId}") {
+        fun withChatId(chatId: String): String = "call/voice/$chatId"
+    }
+    data object VideoCall : Destination("call/video/{chatId}") {
+        fun withChatId(chatId: String): String = "call/video/$chatId"
+    }
     data object DecoyGame : Destination("decoy_game")
     data object GameSettings : Destination("game_settings")
 }
