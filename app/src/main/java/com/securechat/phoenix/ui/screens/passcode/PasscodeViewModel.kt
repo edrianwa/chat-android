@@ -1,9 +1,12 @@
 package com.securechat.phoenix.ui.screens.passcode
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.securechat.phoenix.navigation.PasscodeRouter
+import com.securechat.phoenix.security.PanicWipeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,12 +20,15 @@ data class PasscodeUiState(
     val isLoading: Boolean = true,
     val needsSetup: Boolean = false,
     val resolvedRoute: String? = null,
+    val panicWipeTriggered: Boolean = false,
     val error: String? = null
 )
 
 @HiltViewModel
 class PasscodeViewModel @Inject constructor(
-    private val passcodeRouter: PasscodeRouter
+    @ApplicationContext private val context: Context,
+    private val passcodeRouter: PasscodeRouter,
+    private val panicWipeManager: PanicWipeManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PasscodeUiState())
@@ -70,6 +76,13 @@ class PasscodeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
+            // Check if this is the panic wipe code
+            val panicCode = getPanicCode()
+            if (panicCode != null && passcode == panicCode) {
+                executePanicWipe()
+                return@launch
+            }
+
             val route = passcodeRouter.resolveRoute(passcode)
             if (route != null) {
                 _uiState.update { it.copy(resolvedRoute = route, isLoading = false) }
@@ -83,5 +96,29 @@ class PasscodeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Execute panic wipe: delete all local data silently, show fresh setup.
+     */
+    private suspend fun executePanicWipe() {
+        panicWipeManager.executePanicWipe()
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                panicWipeTriggered = true,
+                needsSetup = true,
+                enteredDigits = ""
+            )
+        }
+    }
+
+    /**
+     * Get the panic code from SharedPreferences (set by user in settings).
+     * Returns null if no panic code configured.
+     */
+    private fun getPanicCode(): String? {
+        val prefs = context.getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("panic_code", null)
     }
 }
