@@ -15,12 +15,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +59,7 @@ data class ContactItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    contacts: List<ContactItem>,
+    uiState: ContactsUiState,
     onContactClick: (String) -> Unit,
     onAddContact: (String) -> Unit,
     onBack: () -> Unit
@@ -67,6 +68,14 @@ fun ContactsScreen(
     var idInput by remember { mutableStateOf("") }
     val isDark = MaterialTheme.colorScheme.background == ChatColors.SurfaceDark
 
+    // Navigate to chat when contact added successfully
+    val lastAddedContact = uiState.contacts.lastOrNull()
+    LaunchedEffect(uiState.addedSuccess) {
+        if (uiState.addedSuccess && lastAddedContact != null) {
+            onContactClick(lastAddedContact.id)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,7 +83,7 @@ fun ContactsScreen(
                     Column {
                         Text("Select contact", color = Color.White, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "${contacts.size} contacts",
+                            "${uiState.contacts.size} contacts",
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 13.sp
                         )
@@ -106,7 +115,7 @@ fun ContactsScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            items(contacts) { contact ->
+            items(uiState.contacts) { contact ->
                 ContactRow(
                     contact = contact,
                     onClick = { onContactClick(contact.id) }
@@ -120,14 +129,20 @@ fun ContactsScreen(
         }
     }
 
+    // Add Contact Dialog with loading/error states
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false; idInput = "" },
+            onDismissRequest = {
+                if (!uiState.isSearching) {
+                    showAddDialog = false
+                    idInput = ""
+                }
+            },
             title = { Text("Add Contact") },
             text = {
                 Column {
                     Text(
-                        "Enter the user's ID number to add them as a contact.",
+                        "Enter the user's 8-digit ID number.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(12.dp))
@@ -135,11 +150,36 @@ fun ContactsScreen(
                         value = idInput,
                         onValueChange = { idInput = it.filter { c -> c.isDigit() }.take(8) },
                         label = { Text("User ID Number") },
-                        placeholder = { Text("8 digit ID") },
+                        placeholder = { Text("e.g. 23392481") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
+                        enabled = !uiState.isSearching,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    // Loading indicator
+                    if (uiState.isSearching) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = ChatColors.Teal
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Searching...", fontSize = 13.sp, color = ChatColors.TextSecondary)
+                        }
+                    }
+
+                    // Error message
+                    if (uiState.searchError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            uiState.searchError,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -147,17 +187,18 @@ fun ContactsScreen(
                     onClick = {
                         if (idInput.length == 8) {
                             onAddContact(idInput)
-                            showAddDialog = false
-                            idInput = ""
                         }
                     },
-                    enabled = idInput.length == 8
+                    enabled = idInput.length == 8 && !uiState.isSearching
                 ) {
-                    Text("Add", color = ChatColors.Teal)
+                    Text("Add", color = if (idInput.length == 8) ChatColors.Teal else ChatColors.TextSecondary)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false; idInput = "" }) {
+                TextButton(
+                    onClick = { showAddDialog = false; idInput = "" },
+                    enabled = !uiState.isSearching
+                ) {
                     Text("Cancel")
                 }
             }

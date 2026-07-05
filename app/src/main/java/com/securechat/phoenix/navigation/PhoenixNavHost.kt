@@ -113,7 +113,7 @@ fun PhoenixNavHost() {
             val uiState by viewModel.uiState.collectAsState()
 
             ContactsScreen(
-                contacts = uiState.contacts,
+                uiState = uiState,
                 onContactClick = { userId ->
                     navController.navigate(Destination.ChatConversation.withChatId(userId)) {
                         popUpTo(Destination.Contacts.route) { inclusive = true }
