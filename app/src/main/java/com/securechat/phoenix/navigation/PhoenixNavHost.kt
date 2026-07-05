@@ -1,9 +1,20 @@
 package com.securechat.phoenix.navigation
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -140,14 +151,103 @@ fun PhoenixNavHost() {
 
             viewModel.openChat(chatId)
 
-            // Media picker launcher — shows photos AND videos from gallery
-            val mediaPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+            // Gallery picker
+            val galleryLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                 contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
             ) { uri ->
                 if (uri != null) {
-                    // TODO: pass uri to MediaRepository.uploadImage(uri, chatId, messageId)
                     viewModel.sendMessage(chatId, "[Media attached]")
                 }
+            }
+
+            // Camera capture
+            var cameraUri by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<android.net.Uri?>(null) }
+            val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+            ) { success ->
+                if (success && cameraUri != null) {
+                    viewModel.sendMessage(chatId, "[Photo taken]")
+                }
+            }
+
+            // Camera permission
+            val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                if (granted && cameraUri != null) {
+                    cameraLauncher.launch(cameraUri!!)
+                }
+            }
+
+            // Show attach options dialog
+            var showAttachOptions by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            if (showAttachOptions) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showAttachOptions = false },
+                    title = { androidx.compose.material3.Text("Attach") },
+                    text = {
+                        androidx.compose.foundation.layout.Column {
+                            androidx.compose.foundation.layout.Row(
+                                modifier = androidx.compose.ui.Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showAttachOptions = false
+                                        galleryLauncher.launch(
+                                            androidx.activity.result.PickVisualMediaRequest(
+                                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                            )
+                                        )
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.Text("🖼️", fontSize = 20.sp)
+                                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.width(16.dp))
+                                androidx.compose.material3.Text("Gallery", fontSize = 16.sp)
+                            }
+                            androidx.compose.foundation.layout.Row(
+                                modifier = androidx.compose.ui.Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showAttachOptions = false
+                                        // Create temp file for camera output
+                                        val file = java.io.File(
+                                            context.cacheDir,
+                                            "camera_${System.currentTimeMillis()}.jpg"
+                                        )
+                                        cameraUri = androidx.core.content.FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.provider",
+                                            file
+                                        )
+                                        // Check camera permission
+                                        val hasCamPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                                            context, android.Manifest.permission.CAMERA
+                                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                        if (hasCamPerm) {
+                                            cameraLauncher.launch(cameraUri!!)
+                                        } else {
+                                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                        }
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.Text("📷", fontSize = 20.sp)
+                                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.width(16.dp))
+                                androidx.compose.material3.Text("Camera", fontSize = 16.sp)
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { showAttachOptions = false }) {
+                            androidx.compose.material3.Text("Cancel")
+                        }
+                    }
+                )
             }
 
             ChatMessageScreen(
@@ -162,11 +262,7 @@ fun PhoenixNavHost() {
                     navController.navigate(Destination.VideoCall.withChatId(chatId))
                 },
                 onAttachMedia = {
-                    mediaPickerLauncher.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                        )
-                    )
+                    showAttachOptions = true
                 },
                 onBack = { navController.popBackStack() }
             )
