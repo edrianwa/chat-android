@@ -12,12 +12,14 @@ import com.securechat.phoenix.chat.data.ChatRepository
 import com.securechat.phoenix.chat.data.MessageEntity
 import com.securechat.phoenix.chat.data.SendResult
 import com.securechat.phoenix.chat.network.ChatSocketClient
+import com.securechat.phoenix.chat.network.ConnectionState
+import com.securechat.phoenix.crypto.KeyManager
+import com.securechat.phoenix.crypto.network.KeyBundleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,7 +38,9 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val socketClient: ChatSocketClient,
     private val authApi: AuthApi,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val keyManager: KeyManager,
+    private val keyBundleRepository: KeyBundleRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -49,11 +53,10 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Authenticate silently, then connect Socket.io with the token.
+     * Authenticate silently, upload key bundle on first run, connect Socket.io.
      */
     private fun ensureAuthenticatedAndConnect() {
         viewModelScope.launch {
-            // Check if already have token
             var token = tokenManager.getAccessToken()
 
             if (token == null) {
@@ -69,13 +72,14 @@ class ChatViewModel @Inject constructor(
                         tokenManager.saveTokens(body.accessToken, body.refreshToken)
                         tokenManager.saveUser(body.user)
                         token = body.accessToken
+
+                        // First-time: generate and upload Signal key bundle
+                        uploadKeyBundleIfNeeded()
                     }
-                } catch (_: Exception) {
-                    // Offline mode
-                }
+                } catch (_: Exception) {}
             }
 
-            // Connect Socket.io with the token
+            // Connect Socket.io
             if (token != null) {
                 socketClient.connect(token)
             }
@@ -83,14 +87,25 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Observe Socket.io connection state and update UI.
+     * Generate Signal key bundle and upload to server.
+     * Only runs once — skips if keys already exist locally.
      */
+    private suspend fun uploadKeyBundleIfNeeded() {
+        try {
+            if (keyManager.hasKeys()) return // Already generated
+
+            val bundle = keyManager.generateRegistrationKeys()
+            keyBundleRepository.uploadBundle(bundle)
+        } catch (e: Exception) {
+            // Key generation requires native libsignal — non-fatal if unavailable
+            android.util.Log.w("ChatViewModel", "Key bundle upload skipped: ${e.message}")
+        }
+    }
+
     private fun observeConnectionState() {
         viewModelScope.launch {
             socketClient.connectionState.collect { state ->
-                _uiState.value = _uiState.value.copy(
-                    isConnected = state == com.securechat.phoenix.chat.network.ConnectionState.CONNECTED
-                )
+                _uiState.value = _uiState.value.copy(isConnected = state == ConnectionState.CONNECTED)
             }
         }
     }
@@ -130,10 +145,5 @@ class ChatViewModel @Inject constructor(
 
     fun markAsRead(senderId: String, messageIds: List<String>) {
         socketClient.sendReadReceipt(senderId, messageIds)
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // Don't disconnect here — foreground service keeps the connection alive
     }
 }
