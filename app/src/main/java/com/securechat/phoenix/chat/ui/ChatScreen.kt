@@ -283,84 +283,106 @@ private fun ChatInputBar(
     onAttach: () -> Unit,
     isDark: Boolean
 ) {
+    var showEmojiPicker by remember { mutableStateOf(false) }
     val bgColor = if (isDark) ChatColors.AppBarDark else ChatColors.SurfaceLight
     val fieldBg = if (isDark) ChatColors.SurfaceDark else Color(0xFFF0F2F5)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(bgColor)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Input field container
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 44.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(fieldBg)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Emoji icon
-            Icon(
-                Icons.Default.EmojiEmotions, "Emoji",
-                tint = ChatColors.TextSecondary,
-                modifier = Modifier.size(24.dp)
-            )
-
-            // Text input
-            androidx.compose.material3.TextField(
-                value = text,
-                onValueChange = onTextChanged,
-                placeholder = { Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp) },
-                colors = androidx.compose.material3.TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = ChatColors.TealLight
-                ),
-                textStyle = TextStyle(
-                    color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
-                    fontSize = 16.sp
-                ),
-                singleLine = false,
-                maxLines = 4,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 0.dp)
-            )
-
-            // Attach button
-            Icon(
-                Icons.Default.AttachFile, "Attach",
-                tint = ChatColors.TextSecondary,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable(onClick = onAttach)
-            )
+    Column(modifier = Modifier.fillMaxWidth().background(bgColor)) {
+        if (showEmojiPicker) {
+            EmojiPicker(onEmojiSelected = { emoji -> onTextChanged(text + emoji) })
         }
 
-        Spacer(Modifier.width(8.dp))
-
-        // Send / Mic button — centered vertically with the field
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(ChatColors.Teal)
-                .clickable {
-                    if (text.isNotBlank()) onSend()
-                },
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (text.isNotBlank()) {
-                Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
-            } else {
-                Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(fieldBg)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.EmojiEmotions, "Emoji",
+                    tint = if (showEmojiPicker) ChatColors.Teal else ChatColors.TextSecondary,
+                    modifier = Modifier.size(24.dp).clickable { showEmojiPicker = !showEmojiPicker }
+                )
+
+                androidx.compose.material3.TextField(
+                    value = text,
+                    onValueChange = { onTextChanged(it); if (it.isNotEmpty()) showEmojiPicker = false },
+                    placeholder = { Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp) },
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = ChatColors.TealLight
+                    ),
+                    textStyle = TextStyle(
+                        color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                        fontSize = 16.sp
+                    ),
+                    singleLine = false,
+                    maxLines = 4,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Icon(
+                    Icons.Default.AttachFile, "Attach",
+                    tint = ChatColors.TextSecondary,
+                    modifier = Modifier.size(24.dp).clickable(onClick = onAttach)
+                )
             }
+
+            Spacer(Modifier.width(8.dp))
+
+            Box(
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(ChatColors.Teal)
+                    .clickable { if (text.isNotBlank()) onSend() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (text.isNotBlank()) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
+                } else {
+                    Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+            }
+        }
+    }
+}
+
+// --- Emoji Picker ---
+
+@Composable
+private fun EmojiPicker(onEmojiSelected: (String) -> Unit) {
+    val emojis = listOf(
+        "😀", "😂", "🥹", "😍", "🥰", "😎", "🤔", "😢",
+        "😡", "🥳", "🤗", "😴", "🤮", "💀", "👻", "🔥",
+        "❤️", "💔", "👍", "👎", "🙏", "👋", "✌️", "🤝",
+        "🎉", "🎊", "💯", "⭐", "🌙", "☀️", "🌈", "💐",
+        "✅", "❌", "⚠️", "💬", "📸", "🎵", "🏠", "🚗"
+    )
+
+    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+        columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(8),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .padding(8.dp)
+    ) {
+        items(emojis.size) { index ->
+            Text(
+                text = emojis[index],
+                fontSize = 24.sp,
+                modifier = Modifier
+                    .padding(4.dp)
+                    .clickable { onEmojiSelected(emojis[index]) },
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }
