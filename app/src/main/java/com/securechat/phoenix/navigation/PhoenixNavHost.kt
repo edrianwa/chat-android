@@ -110,14 +110,13 @@ fun PhoenixNavHost() {
 
             viewModel.openChat(chatId)
 
-            // Media picker launcher
+            // Media picker launcher — shows photos AND videos from gallery
             val mediaPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
             ) { uri ->
                 if (uri != null) {
                     // TODO: pass uri to MediaRepository.uploadImage(uri, chatId, messageId)
-                    // For now, send a placeholder message indicating media was selected
-                    viewModel.sendMessage(chatId, "[Photo attached]")
+                    viewModel.sendMessage(chatId, "[Media attached]")
                 }
             }
 
@@ -133,7 +132,11 @@ fun PhoenixNavHost() {
                     navController.navigate(Destination.VideoCall.withChatId(chatId))
                 },
                 onAttachMedia = {
-                    mediaPickerLauncher.launch("image/*")
+                    mediaPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                        )
+                    )
                 },
                 onBack = { navController.popBackStack() }
             )
