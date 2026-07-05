@@ -84,6 +84,8 @@ class ChatViewModel @Inject constructor(
                 socketClient.connect(token)
                 // Start foreground service to maintain connection in background
                 com.securechat.phoenix.notifications.MessagingForegroundService.start(context)
+                // Register FCM token with server for push notifications
+                registerFcmToken(token)
             }
         }
     }
@@ -101,6 +103,25 @@ class ChatViewModel @Inject constructor(
         } catch (e: Exception) {
             // Key generation requires native libsignal — non-fatal if unavailable
             android.util.Log.w("ChatViewModel", "Key bundle upload skipped: ${e.message}")
+        }
+    }
+
+    /**
+     * Register the device's FCM token with the server for push notifications.
+     * Gets the token from Firebase and sends to POST /notifications/register-token.
+     */
+    private fun registerFcmToken(authToken: String) {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                .addOnSuccessListener { fcmToken ->
+                    viewModelScope.launch {
+                        com.securechat.phoenix.notifications.NotificationTokenManager
+                            .registerCurrentToken(context, fcmToken, authToken)
+                    }
+                }
+        } catch (e: Exception) {
+            // Firebase not configured (no google-services.json) — non-fatal
+            android.util.Log.w("ChatViewModel", "FCM token registration skipped: ${e.message}")
         }
     }
 
