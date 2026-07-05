@@ -221,7 +221,8 @@ private fun ConversationItem(conversation: MessageEntity, displayName: String, o
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
-                    text = conversation.content,
+                    text = if (conversation.content.startsWith("audio:")) "🎤 Voice message"
+                           else conversation.content,
                     color = ChatColors.TextSecondary,
                     fontSize = 14.sp,
                     maxLines = 1,
