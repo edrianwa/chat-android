@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -292,40 +291,46 @@ private fun ChatInputBar(
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.Bottom
     ) {
+        // Input field container
         Row(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(24.dp))
                 .background(fieldBg)
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.Bottom
+                .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    Icons.Default.EmojiEmotions, "Emoji",
-                    tint = ChatColors.TextSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 8.dp)
-            ) {
-                if (text.isEmpty()) {
-                    Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp)
-                }
-                BasicTextField(
-                    value = text,
-                    onValueChange = onTextChanged,
-                    textStyle = TextStyle(
-                        color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
-                        fontSize = 16.sp
-                    ),
-                    cursorBrush = SolidColor(ChatColors.TealLight),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            // Emoji button (placeholder — opens system emoji keyboard)
+            Icon(
+                Icons.Default.EmojiEmotions, "Emoji",
+                tint = ChatColors.TextSecondary,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            // Text input — using TextField to avoid floating toolbar
+            androidx.compose.material3.TextField(
+                value = text,
+                onValueChange = onTextChanged,
+                placeholder = { Text("Message", color = ChatColors.TextSecondary) },
+                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = ChatColors.TealLight
+                ),
+                textStyle = TextStyle(
+                    color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                    fontSize = 16.sp
+                ),
+                singleLine = false,
+                maxLines = 4,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Attach button
             IconButton(onClick = onAttach, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Default.AttachFile, "Attach",
@@ -337,19 +342,30 @@ private fun ChatInputBar(
 
         Spacer(Modifier.width(6.dp))
 
-        // Send button
+        // Send button (when text) OR Mic button (when empty)
         IconButton(
-            onClick = onSend,
+            onClick = {
+                if (text.isNotBlank()) onSend()
+                // else: voice message recording (TODO: implement recording)
+            },
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
                 .background(ChatColors.Teal)
         ) {
-            Icon(
-                Icons.AutoMirrored.Filled.Send, "Send",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+            if (text.isNotBlank()) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Send, "Send",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Icon(
+                    Icons.Default.Mic, "Voice message",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
     }
 }
