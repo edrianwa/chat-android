@@ -24,9 +24,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +68,8 @@ fun ChatMessageScreen(
     isOnline: Boolean = false,
     lastSeen: Long? = null,
     onSendMessage: (String) -> Unit,
+    onVoiceCall: () -> Unit = {},
+    onVideoCall: () -> Unit = {},
     onBack: () -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
@@ -116,6 +120,14 @@ fun ChatMessageScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onVideoCall) {
+                        Icon(Icons.Default.Videocam, "Video call", tint = Color.White)
+                    }
+                    IconButton(onClick = onVoiceCall) {
+                        Icon(Icons.Default.Call, "Voice call", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

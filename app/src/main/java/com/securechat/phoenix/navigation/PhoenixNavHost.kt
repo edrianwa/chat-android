@@ -113,6 +113,12 @@ fun PhoenixNavHost() {
                 chatId = chatId,
                 messages = uiState.messages,
                 onSendMessage = { content -> viewModel.sendMessage(chatId, content) },
+                onVoiceCall = {
+                    // TODO: navigate to voice call screen or initiate via CallManager
+                },
+                onVideoCall = {
+                    // TODO: navigate to video call screen
+                },
                 onBack = { navController.popBackStack() }
             )
         }
