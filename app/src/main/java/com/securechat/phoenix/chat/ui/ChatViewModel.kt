@@ -82,6 +82,8 @@ class ChatViewModel @Inject constructor(
             // Connect Socket.io
             if (token != null) {
                 socketClient.connect(token)
+                // Start foreground service to maintain connection in background
+                com.securechat.phoenix.notifications.MessagingForegroundService.start(context)
             }
         }
     }
