@@ -70,6 +70,7 @@ fun ChatMessageScreen(
     onSendMessage: (String) -> Unit,
     onVoiceCall: () -> Unit = {},
     onVideoCall: () -> Unit = {},
+    onAttachMedia: () -> Unit = {},
     onBack: () -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
@@ -173,6 +174,7 @@ fun ChatMessageScreen(
                         inputText = ""
                     }
                 },
+                onAttach = onAttachMedia,
                 isDark = isDark
             )
         }
@@ -276,6 +278,7 @@ private fun ChatInputBar(
     text: String,
     onTextChanged: (String) -> Unit,
     onSend: () -> Unit,
+    onAttach: () -> Unit,
     isDark: Boolean
 ) {
     val bgColor = if (isDark) ChatColors.AppBarDark else ChatColors.SurfaceLight
@@ -322,7 +325,7 @@ private fun ChatInputBar(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = onAttach, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Default.AttachFile, "Attach",
                     tint = ChatColors.TextSecondary,

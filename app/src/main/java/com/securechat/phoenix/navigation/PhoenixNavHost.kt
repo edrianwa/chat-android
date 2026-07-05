@@ -109,6 +109,17 @@ fun PhoenixNavHost() {
 
             viewModel.openChat(chatId)
 
+            // Media picker launcher
+            val mediaPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+            ) { uri ->
+                if (uri != null) {
+                    // TODO: pass uri to MediaRepository.uploadImage(uri, chatId, messageId)
+                    // For now, send a placeholder message indicating media was selected
+                    viewModel.sendMessage(chatId, "[Photo attached]")
+                }
+            }
+
             ChatMessageScreen(
                 chatId = chatId,
                 messages = uiState.messages,
@@ -118,6 +129,9 @@ fun PhoenixNavHost() {
                 },
                 onVideoCall = {
                     // TODO: navigate to video call screen
+                },
+                onAttachMedia = {
+                    mediaPickerLauncher.launch("image/*")
                 },
                 onBack = { navController.popBackStack() }
             )
