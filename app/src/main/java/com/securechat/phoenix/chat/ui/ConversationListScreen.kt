@@ -16,14 +16,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,11 +61,13 @@ fun ConversationListScreen(
     contactNames: Map<String, String> = emptyMap(),
     onConversationClick: (String) -> Unit,
     onNewChat: () -> Unit,
+    onCreateGroup: () -> Unit = {},
+    onGroupCall: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showAddMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -80,17 +84,24 @@ fun ConversationListScreen(
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Default.Search, "Search", tint = Color.White)
                     }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, "Menu", tint = Color.White)
+                    IconButton(onClick = { showAddMenu = true }) {
+                        Icon(Icons.Default.Add, "Add", tint = Color.White)
                     }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Profile") },
-                            onClick = { showMenu = false; onProfileClick() }
+                            text = { Text("Add Contact") },
+                            leadingIcon = { Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(20.dp)) },
+                            onClick = { showAddMenu = false; onNewChat() }
                         )
                         DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = { showMenu = false; onSettingsClick() }
+                            text = { Text("Create Group Chat") },
+                            leadingIcon = { Icon(Icons.Default.GroupAdd, null, modifier = Modifier.size(20.dp)) },
+                            onClick = { showAddMenu = false; onCreateGroup() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Group Call") },
+                            leadingIcon = { Icon(Icons.Default.VideoCall, null, modifier = Modifier.size(20.dp)) },
+                            onClick = { showAddMenu = false; onGroupCall() }
                         )
                     }
                 },
@@ -98,15 +109,6 @@ fun ConversationListScreen(
                     containerColor = ChatColors.Teal
                 )
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNewChat,
-                containerColor = ChatColors.Green,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Chat, "New Chat")
-            }
         }
     ) { padding ->
         if (conversations.isEmpty()) {
