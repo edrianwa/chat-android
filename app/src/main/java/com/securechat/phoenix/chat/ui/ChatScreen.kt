@@ -127,7 +127,7 @@ fun ChatMessageScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                chatId.take(1).uppercase().ifEmpty { displayName.take(1).uppercase() },
+                                displayName.take(1).uppercase().ifEmpty { chatId.take(1).uppercase() },
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
