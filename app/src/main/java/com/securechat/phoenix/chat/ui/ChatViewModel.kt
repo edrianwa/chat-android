@@ -26,6 +26,7 @@ data class ChatUiState(
     val conversations: List<MessageEntity> = emptyList(),
     val currentChatId: String? = null,
     val isSending: Boolean = false,
+    val isConnected: Boolean = false,
     val error: String? = null
 )
 
@@ -42,31 +43,54 @@ class ChatViewModel @Inject constructor(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
-        ensureAuthenticated()
+        ensureAuthenticatedAndConnect()
         loadConversations()
+        observeConnectionState()
     }
 
     /**
-     * Silently authenticate with server if no token exists.
+     * Authenticate silently, then connect Socket.io with the token.
      */
-    private fun ensureAuthenticated() {
+    private fun ensureAuthenticatedAndConnect() {
         viewModelScope.launch {
-            val hasToken = tokenManager.isLoggedIn.first()
-            if (hasToken) return@launch
+            // Check if already have token
+            var token = tokenManager.getAccessToken()
 
-            val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            val deviceId = (kotlin.math.abs(androidId.hashCode()) % 90000000 + 10000000).toString()
-            val displayName = Build.MODEL.take(32).ifEmpty { "Phoenix User" }
+            if (token == null) {
+                // Auto-register/login with device ID
+                val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+                val deviceId = (kotlin.math.abs(androidId.hashCode()) % 90000000 + 10000000).toString()
+                val displayName = Build.MODEL.take(32).ifEmpty { "Phoenix User" }
 
-            try {
-                val response = authApi.deviceAuth(DeviceAuthRequest(deviceId, displayName))
-                if (response.isSuccessful && response.body() != null) {
-                    val body = response.body()!!
-                    tokenManager.saveTokens(body.accessToken, body.refreshToken)
-                    tokenManager.saveUser(body.user)
+                try {
+                    val response = authApi.deviceAuth(DeviceAuthRequest(deviceId, displayName))
+                    if (response.isSuccessful && response.body() != null) {
+                        val body = response.body()!!
+                        tokenManager.saveTokens(body.accessToken, body.refreshToken)
+                        tokenManager.saveUser(body.user)
+                        token = body.accessToken
+                    }
+                } catch (_: Exception) {
+                    // Offline mode
                 }
-            } catch (_: Exception) {
-                // Offline — continue without server
+            }
+
+            // Connect Socket.io with the token
+            if (token != null) {
+                socketClient.connect(token)
+            }
+        }
+    }
+
+    /**
+     * Observe Socket.io connection state and update UI.
+     */
+    private fun observeConnectionState() {
+        viewModelScope.launch {
+            socketClient.connectionState.collect { state ->
+                _uiState.value = _uiState.value.copy(
+                    isConnected = state == com.securechat.phoenix.chat.network.ConnectionState.CONNECTED
+                )
             }
         }
     }
@@ -80,6 +104,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun openChat(chatId: String) {
+        if (_uiState.value.currentChatId == chatId) return
         _uiState.value = _uiState.value.copy(currentChatId = chatId)
         viewModelScope.launch {
             chatRepository.getMessages(chatId).collect { messages ->
@@ -105,5 +130,10 @@ class ChatViewModel @Inject constructor(
 
     fun markAsRead(senderId: String, messageIds: List<String>) {
         socketClient.sendReadReceipt(senderId, messageIds)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Don't disconnect here — foreground service keeps the connection alive
     }
 }

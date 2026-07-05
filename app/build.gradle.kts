@@ -102,6 +102,9 @@ dependencies {
     implementation("io.getstream:stream-webrtc-android:1.1.1")
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
 
+    // Socket.io client
+    implementation("io.socket:socket.io-client:2.1.0")
+
     // WorkManager (key rotation)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.1.0")
