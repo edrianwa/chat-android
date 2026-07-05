@@ -328,6 +328,18 @@ private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
                 if (message.content.startsWith("audio:")) {
                     // Voice message bubble
                     VoiceMessageContent(message = message, isDark = isDark)
+                } else if (message.content.startsWith("image:")) {
+                    // Image message bubble
+                    val imageUri = message.content.removePrefix("image:")
+                    coil.compose.AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Photo",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp, max = 250.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
                 } else {
                     Text(
                         text = message.content,
