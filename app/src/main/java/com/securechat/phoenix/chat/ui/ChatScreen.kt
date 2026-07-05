@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -78,6 +79,33 @@ fun ChatMessageScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val isDark = MaterialTheme.colorScheme.background == ChatColors.SurfaceDark
+
+    // Voice recording state
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isRecording by remember { mutableStateOf(false) }
+    var recordingDuration by remember { mutableStateOf(0) }
+    val voiceRecorder = remember { com.securechat.phoenix.chat.voice.VoiceRecorder(context) }
+
+    // Permission launcher for voice recording
+    val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            voiceRecorder.startRecording()
+            isRecording = true
+        }
+    }
+
+    // Recording timer
+    androidx.compose.runtime.LaunchedEffect(isRecording) {
+        if (isRecording) {
+            recordingDuration = 0
+            while (isRecording) {
+                kotlinx.coroutines.delay(1000)
+                recordingDuration++
+            }
+        }
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -177,6 +205,30 @@ fun ChatMessageScreen(
                     }
                 },
                 onAttach = onAttachMedia,
+                onVoiceTap = {
+                    if (isRecording) {
+                        // Stop and send
+                        val file = voiceRecorder.stopRecording()
+                        isRecording = false
+                        if (file != null) {
+                            onSendMessage("\uD83C\uDFA4 Voice message (${recordingDuration}s)")
+                        }
+                    } else {
+                        // Start recording — check permission first
+                        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.RECORD_AUDIO
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                        if (hasPermission) {
+                            voiceRecorder.startRecording()
+                            isRecording = true
+                        } else {
+                            audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+                },
+                isRecording = isRecording,
+                recordingDuration = recordingDuration,
                 isDark = isDark
             )
         }
@@ -281,6 +333,9 @@ private fun ChatInputBar(
     onTextChanged: (String) -> Unit,
     onSend: () -> Unit,
     onAttach: () -> Unit,
+    onVoiceTap: () -> Unit,
+    isRecording: Boolean,
+    recordingDuration: Int,
     isDark: Boolean
 ) {
     var showEmojiPicker by remember { mutableStateOf(false) }
@@ -288,7 +343,7 @@ private fun ChatInputBar(
     val fieldBg = if (isDark) ChatColors.SurfaceDark else Color(0xFFF0F2F5)
 
     Column(modifier = Modifier.fillMaxWidth().background(bgColor)) {
-        if (showEmojiPicker) {
+        if (showEmojiPicker && !isRecording) {
             EmojiPicker(onEmojiSelected = { emoji -> onTextChanged(text + emoji) })
         }
 
@@ -296,59 +351,88 @@ private fun ChatInputBar(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 44.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(fieldBg)
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.EmojiEmotions, "Emoji",
-                    tint = if (showEmojiPicker) ChatColors.Teal else ChatColors.TextSecondary,
-                    modifier = Modifier.size(24.dp).clickable { showEmojiPicker = !showEmojiPicker }
-                )
-
-                androidx.compose.material3.TextField(
-                    value = text,
-                    onValueChange = { onTextChanged(it); if (it.isNotEmpty()) showEmojiPicker = false },
-                    placeholder = { Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp) },
-                    colors = androidx.compose.material3.TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = ChatColors.TealLight
-                    ),
-                    textStyle = TextStyle(
-                        color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+            if (isRecording) {
+                // Recording indicator
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFFFFEBEE))
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Mic, "Recording", tint = Color.Red, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Recording... %02d:%02d".format(recordingDuration / 60, recordingDuration % 60),
+                        color = Color.Red,
                         fontSize = 16.sp
-                    ),
-                    singleLine = false,
-                    maxLines = 4,
-                    modifier = Modifier.weight(1f)
-                )
+                    )
+                }
+            } else {
+                // Normal input field
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(fieldBg)
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.EmojiEmotions, "Emoji",
+                        tint = if (showEmojiPicker) ChatColors.Teal else ChatColors.TextSecondary,
+                        modifier = Modifier.size(24.dp).clickable { showEmojiPicker = !showEmojiPicker }
+                    )
 
-                Icon(
-                    Icons.Default.AttachFile, "Attach",
-                    tint = ChatColors.TextSecondary,
-                    modifier = Modifier.size(24.dp).clickable(onClick = onAttach)
-                )
+                    androidx.compose.material3.TextField(
+                        value = text,
+                        onValueChange = { onTextChanged(it); if (it.isNotEmpty()) showEmojiPicker = false },
+                        placeholder = { Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp) },
+                        colors = androidx.compose.material3.TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = ChatColors.TealLight
+                        ),
+                        textStyle = TextStyle(
+                            color = if (isDark) ChatColors.TextPrimaryDark else ChatColors.TextPrimary,
+                            fontSize = 16.sp
+                        ),
+                        singleLine = false,
+                        maxLines = 4,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Icon(
+                        Icons.Default.AttachFile, "Attach",
+                        tint = ChatColors.TextSecondary,
+                        modifier = Modifier.size(24.dp).clickable(onClick = onAttach)
+                    )
+                }
             }
 
             Spacer(Modifier.width(8.dp))
 
+            // Send / Mic / Stop button
             Box(
-                modifier = Modifier.size(44.dp).clip(CircleShape).background(ChatColors.Teal)
-                    .clickable { if (text.isNotBlank()) onSend() },
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(if (isRecording) Color.Red else ChatColors.Teal)
+                    .clickable {
+                        if (text.isNotBlank()) onSend()
+                        else onVoiceTap()
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                if (text.isNotBlank()) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
-                } else {
-                    Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
+                when {
+                    text.isNotBlank() -> Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
+                    isRecording -> Icon(Icons.Default.Stop, "Stop", tint = Color.White, modifier = Modifier.size(22.dp))
+                    else -> Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
                 }
             }
         }
