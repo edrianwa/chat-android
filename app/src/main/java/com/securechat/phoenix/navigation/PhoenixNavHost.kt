@@ -195,12 +195,30 @@ fun PhoenixNavHost() {
         composable(Destination.Profile.route) {
             val viewModel: ProfileViewModel = hiltViewModel()
             val profile by viewModel.profile.collectAsState()
+            val isUploading by viewModel.isUploading.collectAsState()
+
+            // Photo picker for avatar
+            val avatarPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+            ) { uri ->
+                if (uri != null) {
+                    viewModel.uploadAvatar(uri)
+                }
+            }
 
             ProfileScreen(
                 profile = profile,
+                isUploading = isUploading,
                 onUpdateName = viewModel::updateDisplayName,
                 onUpdateAbout = viewModel::updateAbout,
-                onChangeAvatar = {},
+                onAvatarSelected = { viewModel.uploadAvatar(it) },
+                onChangeAvatar = {
+                    avatarPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                },
                 onBack = { navController.popBackStack() }
             )
         }

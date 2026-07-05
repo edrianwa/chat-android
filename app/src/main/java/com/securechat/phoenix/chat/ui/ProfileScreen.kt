@@ -62,8 +62,10 @@ data class UserProfile(
 @Composable
 fun ProfileScreen(
     profile: UserProfile,
+    isUploading: Boolean = false,
     onUpdateName: (String) -> Unit,
     onUpdateAbout: (String) -> Unit,
+    onAvatarSelected: (android.net.Uri) -> Unit = {},
     onChangeAvatar: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -103,20 +105,34 @@ fun ProfileScreen(
                 modifier = Modifier.clickable(onClick = onChangeAvatar),
                 contentAlignment = Alignment.BottomEnd
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(ChatColors.TealLight.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        profile.displayName.take(1).uppercase(),
-                        color = ChatColors.Teal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 48.sp
+                // Show profile picture or initial
+                if (profile.avatarUrl != null) {
+                    coil.compose.AsyncImage(
+                        model = "http://10.0.2.2:3000${profile.avatarUrl}",
+                        contentDescription = "Profile picture",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(ChatColors.TealLight.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            profile.displayName.take(1).uppercase(),
+                            color = ChatColors.Teal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 48.sp
+                        )
+                    }
                 }
+
+                // Camera icon overlay (or loading spinner)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -124,12 +140,20 @@ fun ProfileScreen(
                         .background(ChatColors.Teal),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        "Change photo",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (isUploading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            "Change photo",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
