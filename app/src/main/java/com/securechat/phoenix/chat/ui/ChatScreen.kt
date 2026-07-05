@@ -1,6 +1,7 @@
 package com.securechat.phoenix.chat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -288,32 +290,31 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(bgColor)
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.Bottom
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         // Input field container
         Row(
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(24.dp))
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(22.dp))
                 .background(fieldBg)
-                .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Emoji button (placeholder — opens system emoji keyboard)
+            // Emoji icon
             Icon(
                 Icons.Default.EmojiEmotions, "Emoji",
                 tint = ChatColors.TextSecondary,
                 modifier = Modifier.size(24.dp)
             )
 
-            Spacer(Modifier.width(8.dp))
-
-            // Text input — using TextField to avoid floating toolbar
+            // Text input
             androidx.compose.material3.TextField(
                 value = text,
                 onValueChange = onTextChanged,
-                placeholder = { Text("Message", color = ChatColors.TextSecondary) },
+                placeholder = { Text("Message", color = ChatColors.TextSecondary, fontSize = 16.sp) },
                 colors = androidx.compose.material3.TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
@@ -327,44 +328,38 @@ private fun ChatInputBar(
                 ),
                 singleLine = false,
                 maxLines = 4,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 0.dp)
             )
 
             // Attach button
-            IconButton(onClick = onAttach, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    Icons.Default.AttachFile, "Attach",
-                    tint = ChatColors.TextSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(
+                Icons.Default.AttachFile, "Attach",
+                tint = ChatColors.TextSecondary,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(onClick = onAttach)
+            )
         }
 
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
 
-        // Send button (when text) OR Mic button (when empty)
-        IconButton(
-            onClick = {
-                if (text.isNotBlank()) onSend()
-                // else: voice message recording (TODO: implement recording)
-            },
+        // Send / Mic button — centered vertically with the field
+        Box(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
                 .background(ChatColors.Teal)
+                .clickable {
+                    if (text.isNotBlank()) onSend()
+                },
+            contentAlignment = Alignment.Center
         ) {
             if (text.isNotBlank()) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Send, "Send",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = Color.White, modifier = Modifier.size(20.dp))
             } else {
-                Icon(
-                    Icons.Default.Mic, "Voice message",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(Icons.Default.Mic, "Voice", tint = Color.White, modifier = Modifier.size(22.dp))
             }
         }
     }

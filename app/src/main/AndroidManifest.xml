@@ -31,6 +31,7 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:supportsPictureInPicture="true"
+            android:autoHandwritingEnabled="false"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:theme="@style/Theme.Phoenix">
             <intent-filter>
