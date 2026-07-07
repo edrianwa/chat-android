@@ -225,18 +225,7 @@ fun PhoenixNavHost() {
                                 },
                                 onCamera = {
                                     showAttachOptions = false
-                                    val file = java.io.File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
-                                    cameraUri = androidx.core.content.FileProvider.getUriForFile(
-                                        context, "${context.packageName}.provider", file
-                                    )
-                                    val hasCamPerm = androidx.core.content.ContextCompat.checkSelfPermission(
-                                        context, android.Manifest.permission.CAMERA
-                                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                    if (hasCamPerm) {
-                                        cameraLauncher.launch(cameraUri!!)
-                                    } else {
-                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                                    }
+                                    navController.navigate(Destination.Camera.withChatId(chatId))
                                 },
                                 onImageSelected = { uri ->
                                     pendingPhotoUri = uri
@@ -454,6 +443,27 @@ fun PhoenixNavHost() {
 
         composable(Destination.GameSettings.route) {
             GameSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Custom Camera
+        composable(
+            route = Destination.Camera.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: return@composable
+            val viewModel: ChatViewModel = hiltViewModel()
+
+            com.securechat.phoenix.chat.camera.CameraScreen(
+                onPhotoCaptured = { uri ->
+                    viewModel.sendMessage(chatId, "image:$uri")
+                    navController.popBackStack()
+                },
+                onVideoCaptured = { uri ->
+                    viewModel.sendMessage(chatId, "video:$uri")
+                    navController.popBackStack()
+                },
+                onClose = { navController.popBackStack() }
+            )
         }
 
         // Voice Call

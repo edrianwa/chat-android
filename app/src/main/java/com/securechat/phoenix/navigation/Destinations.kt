@@ -14,6 +14,9 @@ sealed class Destination(val route: String) {
     data object PrivacySettings : Destination("settings/privacy")
     data object StorageSettings : Destination("settings/storage")
     data object AdminPanel : Destination("admin")
+    data object Camera : Destination("camera/{chatId}") {
+        fun withChatId(chatId: String): String = "camera/$chatId"
+    }
     data object VoiceCall : Destination("call/voice/{chatId}") {
         fun withChatId(chatId: String): String = "call/voice/$chatId"
     }

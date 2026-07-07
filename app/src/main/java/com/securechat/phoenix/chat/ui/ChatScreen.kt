@@ -92,6 +92,9 @@ fun ChatMessageScreen(
     val voicePlayer = remember { com.securechat.phoenix.chat.voice.VoicePlayer(context) }
     var isPreviewPlaying by remember { mutableStateOf(false) }
 
+    // Full-screen image viewer state
+    var fullScreenImageUri by remember { mutableStateOf<String?>(null) }
+
     // Permission launcher for voice recording
     val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
@@ -195,7 +198,11 @@ fun ChatMessageScreen(
                         DateSeparator(dateSeparator)
                     }
                     items(msgs) { message ->
-                        MessageBubble(message = message, isDark = isDark)
+                        MessageBubble(
+                            message = message,
+                            isDark = isDark,
+                            onImageClick = { uri -> fullScreenImageUri = uri }
+                        )
                     }
                 }
             }
@@ -269,6 +276,43 @@ fun ChatMessageScreen(
             )
         }
     }
+
+    // Full-screen image viewer overlay
+    if (fullScreenImageUri != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { fullScreenImageUri = null },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { fullScreenImageUri = null },
+                contentAlignment = Alignment.Center
+            ) {
+                coil.compose.AsyncImage(
+                    model = fullScreenImageUri,
+                    contentDescription = "Full-screen photo",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(16.dp)
+                )
+
+                // Close button top-right
+                Text(
+                    "✕",
+                    fontSize = 28.sp,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(24.dp)
+                        .clickable { fullScreenImageUri = null }
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -295,7 +339,7 @@ private fun DateSeparator(label: String) {
 }
 
 @Composable
-private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
+private fun MessageBubble(message: MessageEntity, isDark: Boolean, onImageClick: (String) -> Unit = {}) {
     val isOutgoing = message.isOutgoing
     val bubbleColor = if (isOutgoing) {
         if (isDark) ChatColors.BubbleOutDark else ChatColors.BubbleOutLight
@@ -329,7 +373,7 @@ private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
                     // Voice message bubble
                     VoiceMessageContent(message = message, isDark = isDark)
                 } else if (message.content.startsWith("image:")) {
-                    // Image message bubble
+                    // Image message bubble — clickable to view full-screen
                     val imageUri = message.content.removePrefix("image:")
                     coil.compose.AsyncImage(
                         model = imageUri,
@@ -339,6 +383,7 @@ private fun MessageBubble(message: MessageEntity, isDark: Boolean) {
                             .fillMaxWidth()
                             .heightIn(min = 100.dp, max = 250.dp)
                             .clip(RoundedCornerShape(8.dp))
+                            .clickable { onImageClick(imageUri) }
                     )
                 } else {
                     Text(

@@ -166,7 +166,34 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(recipientId: String, content: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSending = true)
-            val result = socketClient.sendMessage(recipientId, content)
+
+            // If image message, compress before sending
+            val finalContent = if (content.startsWith("image:")) {
+                val uriStr = content.removePrefix("image:")
+                try {
+                    val uri = android.net.Uri.parse(uriStr)
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val originalBytes = inputStream?.readBytes()
+                    inputStream?.close()
+
+                    if (originalBytes != null) {
+                        // Compress: resize to max 1920px, convert to WebP
+                        val compressed = com.securechat.phoenix.media.compression.ImageCompressor
+                            .compressImageBytes(originalBytes)
+                        if (compressed != null) {
+                            // Save compressed to cache and use that URI
+                            val compressedFile = java.io.File(
+                                context.cacheDir,
+                                "img_${System.currentTimeMillis()}.webp"
+                            )
+                            compressedFile.writeBytes(compressed.fullBytes)
+                            "image:${android.net.Uri.fromFile(compressedFile)}"
+                        } else content
+                    } else content
+                } catch (_: Exception) { content }
+            } else content
+
+            val result = socketClient.sendMessage(recipientId, finalContent)
             when (result) {
                 is SendResult.Success -> {
                     _uiState.value = _uiState.value.copy(isSending = false, error = null)
